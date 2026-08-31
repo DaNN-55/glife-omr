@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guitar TAB OMR Lab</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #24272c;
+      background: #f3f4f6;
+      --orange: #ef6508;
+      --orange-soft: #fff2e8;
+      --border: #e4e6e9;
+      --muted: #747983;
+      --surface: #fff;
+      --shadow: 0 2px 9px rgb(30 35 45 / 8%);
+    }
+    body { margin: 0; min-width: 320px; background: #f3f4f6; }
+    button, input, select, textarea { font: inherit; }
+    button, label { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .upload-label:focus-within { outline: 2px solid rgb(239 101 8 / 40%); outline-offset: 2px; }
+    .product-head { display: flex; align-items: center; gap: 12px; min-height: 66px; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .product-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: #fff; background: var(--orange); }
+    .product-mark svg { width: 19px; height: 19px; }
+    .product-copy h1 { margin: 0; font-size: 17px; font-weight: 500; }
+    .product-copy p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .local-status { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; color: var(--muted); font-size: 12px; }
+    .local-status::before { width: 8px; height: 8px; border-radius: 50%; background: #2c7a54; content: ""; }
+    .app { display: grid; grid-template-columns: minmax(340px, .82fr) minmax(440px, 1.18fr); gap: 14px; min-height: calc(100vh - 66px); padding: 14px; }
+    .left { display: grid; min-width: 0; align-content: start; gap: 12px; }
+    .right { min-width: 0; overflow: hidden; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+    .card { overflow: hidden; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+    .surface-head, .image-toolbar { display: flex; align-items: center; gap: 10px; min-height: 49px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .step-number { display: grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--orange); background: var(--orange-soft); font-size: 12px; font-weight: 500; }
+    .surface-title, .image-label { margin: 0; color: #30343a; font-size: 15px; font-weight: 500; }
+    .image-stage { display: grid; place-items: center; height: 177px; padding: 12px; background: #fff; }
+    .image-preview-trigger { display: block; width: 100%; height: 100%; border: 0; padding: 0; background: transparent; cursor: zoom-in; }
+    .image-stage img { display: block; width: 100%; height: 100%; min-height: 0; border-radius: 8px; object-fit: contain; outline: 1px solid oklch(0 0 0 / 10%); outline-offset: -1px; }
+    .image-empty { margin: 0; color: var(--muted); font-size: 13px; }
+    .image-actions { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 0 12px 12px; color: #89909a; }
+    .upload-label, .image-tool { display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 9px; color: inherit; background: transparent; cursor: pointer; }
+    .upload-label:hover, .upload-label:focus-within, .image-tool:hover, .image-tool:focus-visible { color: var(--orange); background: var(--orange-soft); }
+    .upload-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .image-tool svg, .upload-label svg { width: 20px; height: 20px; }
+    .image-tool:disabled { cursor: not-allowed; opacity: .35; }
+    .controls-body { display: grid; gap: 14px; padding: 14px; }
+    .section-title { margin: 0; color: var(--muted); font-size: 13px; font-weight: 400; }
+    .radio-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .radio-card { display: flex; align-items: center; gap: 9px; min-height: 43px; border: 1px solid var(--border); border-radius: 9px; padding: 0 11px; color: var(--muted); font-size: 13px; }
+    .radio-card:has(input:checked) { border-color: #f3aa77; color: #24272c; background: var(--orange-soft); }
+    input[type="radio"] { appearance: none; width: 16px; height: 16px; margin: 0; border: 2px solid #d7dbe0; border-radius: 50%; background: #fff; }
+    input[type="radio"]:checked { border: 5px solid var(--orange); }
+    .check-row { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+    input[type="checkbox"] { position: relative; appearance: none; width: 36px; height: 21px; margin: 0; border: 0; border-radius: 999px; background: #cfd3d9; cursor: pointer; }
+    input[type="checkbox"]::after { position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 18%); content: ""; transition: transform .15s ease; }
+    input[type="checkbox"]:checked { background: var(--orange); }
+    input[type="checkbox"]:checked::after { transform: translateX(15px); }
+    .slider-head { display: flex; align-items: center; }
+    .value-box { display: flex; align-items: center; margin-left: auto; color: #30343a; }
+    .value-box span { font-size: 13px; font-variant-numeric: tabular-nums; }
+    .value-box button { display: grid; place-items: center; width: 30px; height: 30px; margin-left: 4px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; }
+    .value-box button svg { width: 16px; height: 16px; }
+    .value-box button:hover { color: var(--orange); background: var(--orange-soft); }
+    .range-wrap { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; color: #a6abb3; font-size: 11px; }
+    input[type="range"] { width: 100%; accent-color: var(--orange); }
+    .run, .save-sample { width: 100%; border: 0; border-radius: 10px; color: #fff; background: var(--orange); cursor: pointer; font-weight: 500; }
+    .run { min-height: 49px; padding: 13px; font-size: 16px; }
+    .run:active, .save-sample:active, .image-tool:active, .upload-label:active { scale: .96; }
+    .run:disabled, .save-sample:disabled { cursor: not-allowed; opacity: .65; }
+    .saved-note { margin: -4px 0 0; color: #90959e; font-size: 12px; line-height: 1.45; text-align: center; }
+    .saved-note.error, .record-status.error { color: #a5362a; }
+    .diagnosis-flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 7px; padding: 13px 14px; }
+    .diagnosis-node { display: grid; gap: 3px; min-width: 0; text-align: center; }
+    .diagnosis-node strong { color: #30343a; font-size: 12px; font-weight: 500; }
+    .diagnosis-node span, .diagnosis-foot { color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .diagnosis-arrow { width: 16px; height: 16px; color: #cfd3d9; }
+    .diagnosis-foot { margin: 0; padding: 0 14px 13px; text-align: center; }
+    .model-footnote { margin: -6px 8px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .model-footnote sup { color: var(--orange); }
+    .model-footnote a { color: #9b4a13; text-decoration: underline; text-underline-offset: 2px; }
+    .model-footnote a:hover, .model-footnote a:focus-visible { color: var(--orange); }
+    .image-preview-dialog { width: min(1200px, 96vw); max-width: none; max-height: 94vh; margin: auto; border: 0; padding: 0; overflow: visible; background: transparent; }
+    .image-preview-dialog::backdrop { background: rgb(20 24 30 / 72%); }
+    .image-preview-shell { position: relative; border-radius: 12px; padding: 12px; background: #fff; box-shadow: 0 24px 70px rgb(0 0 0 / 35%); }
+    .image-preview-shell img { display: block; width: 100%; max-height: calc(94vh - 24px); object-fit: contain; }
+    .image-preview-close { position: absolute; z-index: 1; top: 18px; right: 18px; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; color: #fff; background: rgb(25 28 34 / 76%); cursor: pointer; font-size: 22px; line-height: 1; }
+    .image-preview-close:hover, .image-preview-close:focus-visible { background: var(--orange); }
+    .right-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; min-height: 54px; padding: 11px 14px 5px; }
+    .right-title { display: flex; align-items: center; gap: 9px; margin: 0; color: #30343a; font-size: 15px; font-weight: 500; }
+    .right-meta { display: grid; justify-items: end; gap: 2px; margin-left: auto; }
+    .summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-left: auto; color: var(--muted); font-size: 11px; }
+    .danger { color: #a94228; font-weight: 500; }
+    .view-tabs { display: flex; gap: 18px; padding: 0 14px; border-bottom: 1px solid var(--border); }
+    .view-tabs button { position: relative; min-height: 39px; border: 0; padding: 0 1px; color: var(--muted); background: transparent; cursor: pointer; font-size: 13px; }
+    .view-tabs button[aria-selected="true"] { color: #24272c; font-weight: 500; }
+    .view-tabs button[aria-selected="true"]::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 2px; background: var(--orange); content: ""; }
+    .legend, .preview-note { display: flex; align-items: center; gap: 6px; margin: 12px 14px 9px; color: #8b9099; font-size: 11px; }
+    .legend i { width: 10px; height: 10px; border-radius: 3px; background: #ffe1c6; box-shadow: inset 0 0 0 1px #f4ae75; }
+    .tokens-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 14px 9px; }
+    .tokens-tools .legend { margin: 0; }
+    .token-help-trigger { display: flex; align-items: center; gap: 6px; min-height: 30px; margin-left: auto; border: 0; border-radius: 7px; padding: 0 8px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; }
+    .token-help-trigger:hover, .token-help-trigger:focus-visible { color: var(--orange); background: var(--orange-soft); }
+    .token-help-trigger::before { display: grid; place-items: center; width: 17px; height: 17px; border: 1px solid currentColor; border-radius: 50%; font-size: 11px; font-weight: 500; content: "?"; }
+    .token-help-popover { position: fixed; inset: auto; width: min(780px, calc(100vw - 24px)); max-height: min(72vh, 720px); margin: 0; overflow: auto; border: 0; border-radius: 14px; padding: 0; color: #24272c; background: #fff8f2; box-shadow: 0 18px 55px rgb(24 28 35 / 22%); outline: 1px solid #f0d0b8; }
+    .token-help-popover-head { position: sticky; z-index: 1; top: 0; display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px 13px; border-bottom: 1px solid #f0d8c6; background: #fff8f2; }
+    .token-help-popover-copy { min-width: 0; }
+    .token-help-close { display: grid; flex: 0 0 auto; place-items: center; width: 34px; height: 34px; margin-left: auto; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; }
+    .token-help-close:hover, .token-help-close:focus-visible { color: var(--orange); background: var(--orange-soft); }
+    .token-help-close svg { width: 18px; height: 18px; }
+    .token-help-content { padding: 14px 18px 18px; }
+    .token-help-heading { margin: 0; color: #30343a; font-size: 14px; font-weight: 500; }
+    .token-help-intro { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .token-help-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .token-help-group { border-radius: 8px; padding: 11px 12px; background: #fff; }
+    .token-help-group h4 { margin: 0 0 7px; color: #4b5058; font-size: 12px; font-weight: 500; }
+    .token-help-group dl { margin: 0; }
+    .token-definition { display: grid; grid-template-columns: minmax(105px, .8fr) minmax(0, 1.4fr); gap: 9px; padding: 6px 0; border-top: 1px solid #f0e7df; }
+    .token-definition:first-child { border-top: 0; }
+    .token-definition dt { min-width: 0; color: #8b430f; font: 500 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; overflow-wrap: anywhere; }
+    .token-definition dd { margin: 0; color: #626770; font-size: 11px; line-height: 1.45; }
+    .token-help-popover .token-help-grid { margin-top: 0; }
+    .token-help-popover > .token-help-intro { margin: 0; padding: 0 18px 16px; }
+    .diagnosis-help-link { margin-left: 4px; border: 0; padding: 0; color: var(--orange); background: transparent; cursor: pointer; font-size: inherit; text-decoration: underline; text-underline-offset: 2px; }
+    .token-card, .preview-card, .record-card { margin: 0 14px 14px; border-radius: 9px; box-shadow: none; outline: 1px solid oklch(0 0 0 / 10%); outline-offset: -1px; }
+    .token-card { min-height: 460px; padding: 15px 17px; background: #f8f9fa; }
+    .preview-card { min-height: 280px; margin-bottom: 8px; padding: 10px; }
+    .preview-note.warning { color: #9b3b00; }
+    .preview-controls { display: flex; justify-content: flex-end; margin: 0 14px 14px; }
+    .preview-play { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; border: 1px solid #f3aa77; border-radius: 8px; padding: 0 13px; color: #9b4a13; background: var(--orange-soft); cursor: pointer; font-size: 12px; font-weight: 500; }
+    .preview-play:hover, .preview-play:focus-visible { color: #fff; background: var(--orange); }
+    .preview-play:disabled { border-color: var(--border); color: var(--muted); background: #f5f6f7; cursor: wait; opacity: .8; }
+    .preview-play-icon { width: 14px; text-align: center; }
+    .at-cursor-bar { background: rgb(239 101 8 / 10%); }
+    .at-cursor-beat { width: 2px; background: var(--orange); }
+    .at-highlight * { fill: var(--orange); stroke: var(--orange); }
+    .record-card { overflow: visible; padding: 18px; }
+    .record-title { margin: 0; color: #30343a; font-size: 14px; font-weight: 500; }
+    .record-intro { margin: 4px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .record-grid { display: grid; grid-template-columns: minmax(180px, .75fr) minmax(260px, 1.25fr); gap: 14px; align-items: start; }
+    .record-meta { display: grid; gap: 12px; }
+    .record-field { display: grid; gap: 7px; margin: 0; color: #535861; font-size: 13px; font-weight: 500; }
+    .record-field select, .record-field textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: #2c2f34; background: #fff; font: inherit; line-height: 1.5; }
+    .record-field textarea { min-height: 92px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 400; }
+    .record-field .tokens-editor { min-height: 190px; }
+    .error-category-field { position: relative; }
+    .error-category-trigger { display: flex; align-items: center; gap: 8px; min-height: 42px; width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 0 11px; color: #2c2f34; background: #fff; cursor: pointer; text-align: left; }
+    .error-category-trigger span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .error-category-trigger svg { flex: 0 0 auto; width: 16px; height: 16px; margin-left: auto; color: var(--muted); transition: transform .15s ease; }
+    .error-category-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+    .error-category-trigger:disabled { cursor: not-allowed; opacity: .5; }
+    .error-category-popover { position: fixed; inset: auto; gap: 12px; width: min(340px, calc(100vw - 24px)); max-height: min(70vh, 520px); margin: 0; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: #fff; box-shadow: 0 12px 32px rgb(30 35 45 / 18%); }
+    .error-category-popover:popover-open { display: grid; }
+    .error-category-group { display: grid; gap: 3px; min-width: 0; margin: 0; border: 0; padding: 0; }
+    .error-category-group + .error-category-group { border-top: 1px solid var(--border); padding-top: 10px; }
+    .error-category-group legend { margin-bottom: 4px; padding: 0; color: var(--muted); font-size: 11px; font-weight: 400; }
+    .error-category-option { display: flex; align-items: center; gap: 8px; min-height: 34px; color: #3e434a; font-size: 12px; font-weight: 400; cursor: pointer; }
+    .error-category-option input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; margin: 0; border: initial; border-radius: initial; background: none; accent-color: var(--orange); box-shadow: none; }
+    .error-category-option input[type="checkbox"]::after { content: none; }
+    .error-category-option input[type="checkbox"]:checked { background: none; }
+    .record-actions { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+    .record-actions .save-sample { flex: 0 0 auto; width: auto; margin-left: auto; padding: 11px 16px; }
+    .record-status { margin: 0; color: var(--muted); font-size: 12px; text-align: left; }
+    .result-footer { padding: 0 14px 13px; color: var(--muted); font-size: 11px; text-align: right; }
+    #scorePreview { min-height: 260px; overflow: auto; }
+    [hidden] { display: none !important; }
+    pre { margin: 0; color: #2c2f34; font: 14px/1.62 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    mark { border-radius: 3px; padding: 1px 3px; color: #91420c; background: #ffe1c6; box-shadow: inset 0 0 0 1px #f4ae75; }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .right { min-height: 620px; }
+    }
+    @media (max-width: 650px) {
+      .record-grid { grid-template-columns: 1fr; }
+      .record-actions { align-items: stretch; flex-direction: column; }
+      .record-actions .save-sample { width: 100%; margin-left: 0; }
+    }
+    @media (max-width: 480px) {
+      .product-head { padding: 11px 12px; }
+      .local-status { display: none; }
+      .app { gap: 10px; padding: 10px; }
+      .image-toolbar { flex-wrap: wrap; }
+      .radio-row { grid-template-columns: 1fr; }
+      .right-meta { width: calc(100% - 33px); margin-left: 33px; justify-items: start; }
+      .summary { width: 100%; margin-left: 0; }
+      .view-tabs { gap: 13px; overflow-x: auto; }
+      .diagnosis-flow { grid-template-columns: 1fr; }
+      .diagnosis-arrow { transform: rotate(90deg); }
+      .token-help-popover { width: calc(100vw - 20px); max-height: calc(100vh - 20px); border-radius: 12px; }
+      .token-help-popover-head { padding: 14px; }
+      .token-help-content { padding: 12px 14px 14px; }
+      .token-help-popover > .token-help-intro { padding: 0 14px 14px; }
+      .token-help-grid { grid-template-columns: 1fr; }
+      .token-definition { grid-template-columns: minmax(95px, .8fr) minmax(0, 1.4fr); }
+    }
+  </style>
+  <script src="/static/alphatab/alphaTab.js"></script>
+</head>
+<body>
+  <header class="product-head">
+    <span class="product-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 7h14M5 12h14M5 17h14"/><path d="M9 4v16M15 4v16"/></svg>
+    </span>
+    <div class="product-copy">
+      <h1>Guitar TAB OMR Lab</h1>
+      <p>单系统识别与错误定位</p>
+    </div>
+    <span class="local-status">本地单系统测试</span>
+  </header>
+  <main class="app">
+    <section class="left">
+      <div class="card image-card">
+        <div class="image-toolbar">
+          <span class="step-number">1</span>
+          <h2 class="image-label">输入谱面</h2>
+        </div>
+        <div class="image-stage">
+          <p id="imageEmpty" class="image-empty">上传或粘贴一张单系统谱面图片</p>
+          <button id="openImagePreview" class="image-preview-trigger" type="button" aria-label="放大查看输入谱面" hidden>
+            <img id="sourceImage" alt="">
+          </button>
+        </div>
+        <div class="image-actions">
+          <label class="upload-label" title="上传单张谱面图片" aria-label="上传单张谱面图片">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 15v4h14v-4"/></svg>
+            <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp">
+          </label>
+          <button class="image-tool" type="button" title="摄像头输入（未接入）" aria-label="摄像头输入，当前未接入" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v10H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
+          <button id="pasteButton" class="image-tool" type="button" title="从剪贴板粘贴图片，也可直接按 ⌘V" aria-label="从剪贴板粘贴图片">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 5h6v3H9z"/><path d="M7 6H5v14h14V6h-2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="card controls">
+        <div class="surface-head">
+          <span class="step-number">2</span>
+          <h2 class="surface-title">解码设置</h2>
+        </div>
+        <div class="controls-body">
+          <div class="radio-row">
+            <label class="radio-card"><input type="radio" name="decode" value="greedy" checked> greedy</label>
+            <label class="radio-card"><input type="radio" name="decode" value="beam"> constrained beam</label>
+          </div>
+          <label class="check-row"><input id="constraints" type="checkbox" checked> Token constraints</label>
+          <div class="slider-head">
+            <h3 class="section-title">Max decode length</h3>
+            <div class="value-box"><span id="maxDecodeValue">384</span><button id="resetLength" type="button" title="恢复为 384" aria-label="恢复最大解码长度为 384"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8V4m0 0h4M5 4l3.2 3.2A7 7 0 1 1 5.7 14"/></svg></button></div>
+          </div>
+          <div class="range-wrap"><span>64</span><input id="maxDecodeLength" type="range" min="64" max="512" step="1" value="384"><span>512</span></div>
+          <button id="runButton" class="run" type="button">运行 OMR</button>
+          <p id="runStatus" class="saved-note" aria-live="polite">启动本地服务后，按钮会真正调用现有模型；一次只识别一张图片。</p>
+        </div>
+      </div>
+      <aside class="card diagnosis-card" aria-labelledby="diagnosisTitle">
+        <div class="surface-head"><h2 id="diagnosisTitle" class="surface-title">问题定位</h2></div>
+        <div class="diagnosis-flow">
+          <span class="diagnosis-node"><strong>输入</strong><span>截图或裁剪异常</span></span>
+          <svg class="diagnosis-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+          <span class="diagnosis-node"><strong>OMR Tokens</strong><span>截图正确但 tokens 错</span></span>
+          <svg class="diagnosis-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+          <span class="diagnosis-node"><strong>TAB 预览</strong><span>tokens 正确但预览错</span></span>
+        </div>
+        <p class="diagnosis-foot">若预览提示“暂未转换”，代表技巧可能已识别，但转换映射尚未覆盖。<button id="tokenHelpLink" class="diagnosis-help-link" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tokenHelpPopover">查看 Token 说明</button></p>
+      </aside>
+      <p class="model-footnote"><sup>*</sup> 当前模型来源：<a href="https://huggingface.co/kk9293/guitar-tab-omr" target="_blank" rel="noopener noreferrer">kk9293/guitar-tab-omr ↗</a></p>
+    </section>
+
+    <section class="right">
+      <div class="right-head">
+        <h2 class="right-title"><span class="step-number">3</span>核验结果</h2>
+        <div class="right-meta">
+          <div class="summary">
+            <span id="noteCount">25 notes</span>
+            <span id="measureTotals">M1 21/16 · M2 5/4</span>
+            <span id="structureStatus" class="danger">0/2 measures closed</span>
+          </div>
+          <button id="tokenHelpButton" class="token-help-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tokenHelpPopover">Token 说明</button>
+          <div id="tokenHelpPopover" class="token-help-popover" popover="auto" role="dialog" aria-labelledby="tokenHelpTitle">
+            <div class="token-help-popover-head">
+              <div class="token-help-popover-copy">
+                <h3 id="tokenHelpTitle" class="token-help-heading">如何阅读 OMR Tokens</h3>
+                <p class="token-help-intro">每行通常描述元信息、小节边界或一个节奏事件。同一行中出现多个 N_ 音符时，代表它们在同一拍同时发声。</p>
+              </div>
+              <button id="tokenHelpClose" class="token-help-close" type="button" aria-label="关闭 Token 说明">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+              </button>
+            </div>
+            <div class="token-help-content">
+              <div class="token-help-grid">
+                <section class="token-help-group" aria-labelledby="tokenMetaTitle">
+                  <h4 id="tokenMetaTitle">元信息与结构</h4>
+                  <dl>
+                    <div class="token-definition"><dt>TEMPO_70</dt><dd>速度为每分钟 70 拍；数字部分是 BPM。</dd></div>
+                    <div class="token-definition"><dt>TS_4_4</dt><dd>4/4 拍；前一个数字是每小节拍数，后一个是拍值。</dd></div>
+                    <div class="token-definition"><dt>BAR / END_BAR</dt><dd>一个小节的开始与结束。</dd></div>
+                    <div class="token-definition"><dt>BEAT</dt><dd>一个节奏事件；后面继续描述时值、音符和技巧。</dd></div>
+                  </dl>
+                </section>
+                <section class="token-help-group" aria-labelledby="tokenRhythmTitle">
+                  <h4 id="tokenRhythmTitle">节奏</h4>
+                  <dl>
+                    <div class="token-definition"><dt>DUR_4 / 8 / 16</dt><dd>四分、八分、十六分音符；数字是时值分母。</dd></div>
+                    <div class="token-definition"><dt>DOTS_1 / DOTS_2</dt><dd>一个或两个附点。</dd></div>
+                    <div class="token-definition"><dt>TUPLET_3_2</dt><dd>三音占两音时值，也就是常见的三连音关系。</dd></div>
+                    <div class="token-definition"><dt>REST</dt><dd>休止符；这一拍没有发声音符。</dd></div>
+                  </dl>
+                </section>
+                <section class="token-help-group" aria-labelledby="tokenNoteTitle">
+                  <h4 id="tokenNoteTitle">音符</h4>
+                  <dl>
+                    <div class="token-definition"><dt>N_S3_F4</dt><dd>第 3 弦、第 4 品。S 表示弦，F 表示品位。</dd></div>
+                    <div class="token-definition"><dt>N_S2_FX</dt><dd>第 2 弦的闷音或死音；FX 中的 X 表示没有明确品高。</dd></div>
+                    <div class="token-definition"><dt>多个 N_…</dt><dd>同一 BEAT 中的多个音符，表示和弦或同时发声。</dd></div>
+                  </dl>
+                </section>
+                <section class="token-help-group" aria-labelledby="tokenTechniqueTitle">
+                  <h4 id="tokenTechniqueTitle">技巧</h4>
+                  <dl>
+                    <div class="token-definition"><dt>NTECH_BEND_1…8</dt><dd>推弦技巧的 8 个离散值。</dd></div>
+                    <div class="token-definition"><dt>NTECH_TIE_START / DEST</dt><dd>延音线的起点与终点。</dd></div>
+                    <div class="token-definition"><dt>NTECH_SLIDE_IN_1 / 2</dt><dd>从下方或上方滑入当前音。</dd></div>
+                    <div class="token-definition"><dt>NTECH_SLIDE_OUT_1…4</dt><dd>换把滑音、连奏滑音、向上滑出或向下滑出。</dd></div>
+                    <div class="token-definition"><dt>NTECH_VIBRATO_1 / 2</dt><dd>普通揉弦或宽揉弦。</dd></div>
+                    <div class="token-definition"><dt>NTECH_LEGATO_ORIGIN</dt><dd>击弦或勾弦连奏关系的起点。</dd></div>
+                    <div class="token-definition"><dt>NTECH_HARMONIC_…</dt><dd>泛音类型；后缀区分自然、人工、捏泛音等。</dd></div>
+                    <div class="token-definition"><dt>NTECH_HARMONIC_VALUE_12</dt><dd>泛音的数值参数；含 P 时表示小数点，例如 14P7 表示 14.7。</dd></div>
+                    <div class="token-definition"><dt>NTECH_GHOST</dt><dd>幽灵音或弱化处理的音符。</dd></div>
+                    <div class="token-definition"><dt>BTECH_ARPEGGIO / STRUM</dt><dd>琶音与扫弦，后缀 DOWN / UP 表示方向。</dd></div>
+                  </dl>
+                </section>
+              </div>
+              <p class="token-help-intro">模型完整范围：在 <code>models/guitar-tab-omr/vocab.json</code> 搜索 <code>NTECH_</code> 和 <code>BTECH_</code>。若 token 已存在但预览提示“暂未转换”，再检查本页的 <code>techniqueToAlphaTex</code> 映射。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="view-tabs" role="tablist" aria-label="识别结果视图">
+        <button id="tokensTab" type="button" role="tab" aria-selected="true" aria-controls="tokensPanel">OMR tokens</button>
+        <button id="previewTab" type="button" role="tab" aria-selected="false" aria-controls="previewPanel">TAB 预览</button>
+      </div>
+      <div id="tokensPanel" role="tabpanel" aria-labelledby="tokensTab">
+        <div class="tokens-tools">
+          <div class="legend">模型原始输出</div>
+        </div>
+        <div class="card token-card"><pre id="tokens" aria-live="polite"></pre></div>
+      </div>
+      <div id="previewPanel" role="tabpanel" aria-labelledby="previewTab" hidden>
+        <p id="previewStatus" class="preview-note">当前 tokens 转为 AlphaTex 后由 alphaTab 渲染；这是候选预览，不是正式导出。</p>
+        <div class="card preview-card"><div id="scorePreview" aria-label="OMR tokens 转换后的 TAB 谱面"></div></div>
+        <div class="preview-controls">
+          <button id="playPauseButton" class="preview-play" type="button" disabled aria-label="播放候选谱面">
+            <span id="playPauseIcon" class="preview-play-icon" aria-hidden="true">▶</span>
+            <span id="playPauseLabel">加载音色…</span>
+          </button>
+        </div>
+        <section class="card record-card" aria-labelledby="recordTitle">
+          <h3 id="recordTitle" class="record-title">人工审核识别记录</h3>
+          <p class="record-intro">识别成功后，图片、模型原始 tokens 和 Decode 配置已经自动保存。人工确认结论后，可明确选择是否加入训练候选。</p>
+          <div class="record-grid">
+            <div class="record-meta">
+              <div class="record-field">
+                <span>人工结论</span>
+                <div class="radio-row">
+                  <label class="radio-card"><input type="radio" name="labelSource" value="corrected_error" checked>识别有误</label>
+                  <label class="radio-card"><input type="radio" name="labelSource" value="verified_correct">识别正确</label>
+                </div>
+              </div>
+              <div class="record-field error-category-field">
+                <span id="errorCategoryLabel">错误类型</span>
+                <button id="errorCategoryButton" class="error-category-trigger" type="button" aria-expanded="false" aria-controls="errorCategoryPopover" aria-labelledby="errorCategoryLabel errorCategorySummary">
+                  <span id="errorCategorySummary">弦号或品位（1）</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                </button>
+                <div id="errorCategoryPopover" class="error-category-popover" popover="auto">
+                  <fieldset class="error-category-group">
+                    <legend>OMR 识别错误</legend>
+                    <label class="error-category-option"><input type="checkbox" value="omr_string_fret" data-short-label="弦号或品位" checked>OMR：弦号或品位错误</label>
+                    <label class="error-category-option"><input type="checkbox" value="omr_duration_rhythm" data-short-label="时值或节奏">OMR：时值或节奏错误</label>
+                    <label class="error-category-option"><input type="checkbox" value="omr_technique" data-short-label="技巧">OMR：技巧识别错误</label>
+                    <label class="error-category-option"><input type="checkbox" value="omr_structure" data-short-label="小节或结构">OMR：小节或结构错误</label>
+                    <label class="error-category-option"><input type="checkbox" value="omr_metadata" data-short-label="速度或拍号">OMR：速度、拍号等错误</label>
+                    <label class="error-category-option"><input type="checkbox" value="omr_other" data-short-label="其他 OMR">OMR：其他识别错误</label>
+                  </fieldset>
+                  <fieldset class="error-category-group">
+                    <legend>其他诊断问题</legend>
+                    <label class="error-category-option"><input type="checkbox" value="input_preprocessing" data-short-label="输入或预处理">输入或预处理问题</label>
+                    <label class="error-category-option"><input type="checkbox" value="decode_rule" data-short-label="Decode 规则">Decode 规则问题</label>
+                    <label class="error-category-option"><input type="checkbox" value="conversion_preview" data-short-label="Tokens 转谱面">Tokens 转谱面问题</label>
+                  </fieldset>
+                </div>
+              </div>
+              <label class="record-field">备注（可选）
+                <textarea id="errorNote" maxlength="2000" placeholder="例如：第二小节第 3 个音应为四弦 6 品"></textarea>
+              </label>
+            </div>
+            <label class="record-field">人工确认后的正确 tokens（上方同步预览）
+              <textarea id="correctedTokens" class="tokens-editor" spellcheck="false"></textarea>
+            </label>
+          </div>
+          <div class="record-actions">
+            <p id="recordStatus" class="record-status" aria-live="polite">尚未产生识别记录</p>
+            <label class="check-row"><input id="includeTraining" type="checkbox">加入训练素材</label>
+            <button id="saveRecordReview" class="save-sample" type="button" disabled>保存人工结论</button>
+          </div>
+        </section>
+      </div>
+      <footer class="result-footer">候选输出 · 不正式导出</footer>
+    </section>
+  </main>
+  <dialog id="imagePreviewDialog" class="image-preview-dialog" aria-label="输入谱面放大预览">
+    <div class="image-preview-shell">
+      <button id="closeImagePreview" class="image-preview-close" type="button" aria-label="关闭放大预览">×</button>
+      <img id="zoomedSourceImage" alt="">
+    </div>
+  </dialog>
+
+  <script>
+    const variants = {
+      empty: {
+        image: '',
+        alt: '尚未上传谱面',
+        measures: '',
+        hasPrediction: false,
+        lines: ['请先上传或粘贴一张谱面图片'],
+      },
+    };
+
+    const elements = {
+      imageEmpty: document.querySelector('#imageEmpty'),
+      sourceImage: document.querySelector('#sourceImage'),
+      openImagePreview: document.querySelector('#openImagePreview'),
+      imagePreviewDialog: document.querySelector('#imagePreviewDialog'),
+      closeImagePreview: document.querySelector('#closeImagePreview'),
+      zoomedSourceImage: document.querySelector('#zoomedSourceImage'),
+      imageInput: document.querySelector('#imageInput'),
+      pasteButton: document.querySelector('#pasteButton'),
+      measureTotals: document.querySelector('#measureTotals'),
+      noteCount: document.querySelector('#noteCount'),
+      structureStatus: document.querySelector('#structureStatus'),
+      tokens: document.querySelector('#tokens'),
+      runButton: document.querySelector('#runButton'),
+      runStatus: document.querySelector('#runStatus'),
+      constraints: document.querySelector('#constraints'),
+      maxDecodeLength: document.querySelector('#maxDecodeLength'),
+      maxDecodeValue: document.querySelector('#maxDecodeValue'),
+      resetLength: document.querySelector('#resetLength'),
+      tokensTab: document.querySelector('#tokensTab'),
+      previewTab: document.querySelector('#previewTab'),
+      tokensPanel: document.querySelector('#tokensPanel'),
+      previewPanel: document.querySelector('#previewPanel'),
+      previewStatus: document.querySelector('#previewStatus'),
+      scorePreview: document.querySelector('#scorePreview'),
+      playPauseButton: document.querySelector('#playPauseButton'),
+      playPauseIcon: document.querySelector('#playPauseIcon'),
+      playPauseLabel: document.querySelector('#playPauseLabel'),
+      errorCategoryButton: document.querySelector('#errorCategoryButton'),
+      errorCategorySummary: document.querySelector('#errorCategorySummary'),
+      errorCategoryPopover: document.querySelector('#errorCategoryPopover'),
+      errorCategoryOptions: [...document.querySelectorAll('#errorCategoryPopover input[type="checkbox"]')],
+      reviewModeOptions: [...document.querySelectorAll('input[name="labelSource"]')],
+      correctedTokens: document.querySelector('#correctedTokens'),
+      errorNote: document.querySelector('#errorNote'),
+      includeTraining: document.querySelector('#includeTraining'),
+      saveRecordReview: document.querySelector('#saveRecordReview'),
+      recordStatus: document.querySelector('#recordStatus'),
+      tokenHelpPopover: document.querySelector('#tokenHelpPopover'),
+      tokenHelpButton: document.querySelector('#tokenHelpButton'),
+      tokenHelpClose: document.querySelector('#tokenHelpClose'),
+      tokenHelpLink: document.querySelector('#tokenHelpLink'),
+    };
+    let selected = 'empty';
+    let scoreApi = null;
+    let playerReady = false;
+    let recordSourceTokenText = null;
+    let correctedPreviewTimer = null;
+    let tokenHelpOpener = null;
+    let tokenHelpCloseTimer = null;
+    let tokenHelpPinned = false;
+    const canHoverTokenHelp = matchMedia('(hover: hover) and (pointer: fine)');
+
+    const techniqueToAlphaTex = {
+      NTECH_GHOST: 'g',
+      NTECH_HARMONIC_ARTIFICIAL: 'ah',
+      NTECH_HARMONIC_FEEDBACK: 'fh',
+      NTECH_HARMONIC_NATURAL: 'nh',
+      NTECH_HARMONIC_PINCH: 'ph',
+      NTECH_HARMONIC_SEMI: 'sh',
+      NTECH_HARMONIC_TAP: 'th',
+      NTECH_LEGATO_ORIGIN: 'h',
+      NTECH_SLIDE_IN_1: 'sib',
+      NTECH_SLIDE_IN_2: 'sia',
+      NTECH_SLIDE_OUT_1: 'ss',
+      NTECH_SLIDE_OUT_2: 'sl',
+      NTECH_SLIDE_OUT_3: 'sou',
+      NTECH_SLIDE_OUT_4: 'sod',
+      NTECH_TIE_DEST: 't',
+      NTECH_VIBRATO_1: 'v',
+      NTECH_VIBRATO_2: 'vw',
+    };
+
+    function tokensToAlphaTex(lines) {
+      let tempo = 120;
+      let numerator = 4;
+      let denominator = 4;
+      let currentBar = [];
+      const bars = [];
+      const warnings = new Set();
+
+      function closeBar() {
+        if (currentBar.length) bars.push(currentBar.join('\n'));
+        currentBar = [];
+      }
+
+      for (const line of lines) {
+        const words = line.trim().split(/\s+/).filter(Boolean);
+        if (!words.length) continue;
+        if (words[0].startsWith('TEMPO_')) {
+          tempo = Number(words[0].slice(6)) || tempo;
+          continue;
+        }
+        if (words[0].startsWith('TS_')) {
+          const match = words[0].match(/^TS_(\d+)_(\d+)$/);
+          if (match) [numerator, denominator] = [Number(match[1]), Number(match[2])];
+          continue;
+        }
+        if (words[0] === 'BAR') {
+          closeBar();
+          continue;
+        }
+        if (words[0] === 'END_BAR') {
+          closeBar();
+          continue;
+        }
+        if (words[0] !== 'BEAT') continue;
+
+        const durationToken = words.find(word => /^DUR_\d+$/.test(word));
+        const duration = durationToken ? durationToken.slice(4) : '4';
+        const tupletToken = words.find(word => /^TUPLET_\d+_\d+$/.test(word));
+        const tuplet = tupletToken ? ` {tu ${tupletToken.slice(7).replace('_', ' ')}}` : '';
+        const notes = [];
+        let currentNote = null;
+        for (const word of words) {
+          const noteMatch = word.match(/^N_S(\d+)_F(X|\d+)$/);
+          if (noteMatch) {
+            currentNote = {string: noteMatch[1], fret: noteMatch[2], effects: [], harmonicValue: null};
+            notes.push(currentNote);
+            continue;
+          }
+          if (!word.startsWith('NTECH_') || word === 'NTECH_TIE_START') continue;
+          if (!currentNote) {
+            warnings.add(`${word} 没有关联音符`);
+            continue;
+          }
+          const harmonicValue = word.match(/^NTECH_HARMONIC_VALUE_(.+)$/);
+          if (harmonicValue) {
+            currentNote.harmonicValue = harmonicValue[1].replace('P', '.');
+            continue;
+          }
+          const effect = techniqueToAlphaTex[word];
+          if (effect) currentNote.effects.push(effect);
+          else warnings.add(`${word} 暂未转换`);
+        }
+
+        let content = 'r';
+        if (notes.length) {
+          const convertedNotes = notes.map(note => {
+            const fret = note.fret === 'X' ? '0' : note.fret;
+            const effects = [...note.effects];
+            if (note.fret === 'X') effects.push('x');
+            if (note.harmonicValue) {
+              const index = effects.findIndex(effect => ['ah', 'fh', 'ph', 'sh', 'th'].includes(effect));
+              if (index >= 0) effects[index] += ` ${note.harmonicValue}`;
+            }
+            return `${fret}.${7 - Number(note.string)}${effects.length ? `{${effects.join(' ')}}` : ''}`;
+          });
+          content = convertedNotes.length === 1 ? convertedNotes[0] : `(${convertedNotes.join(' ')})`;
+        } else if (!words.includes('REST')) {
+          warnings.add('没有音符的 BEAT 已按休止符预览');
+        }
+        if (words.includes('DOTS_1')) content += ' {d}';
+        if (words.includes('DOTS_2')) content += ' {dd}';
+        currentBar.push(`:${duration}${tuplet} ${content}`);
+      }
+      closeBar();
+      if (!bars.length) bars.push(':4 r');
+      return {
+        text: [
+          '\\title "OMR candidate preview"',
+          `\\tempo ${tempo}`,
+          '\\track "Guitar"',
+          '\\staff {tabs}',
+          '\\tuning (E4 B3 G3 D3 A2 E2)',
+          `\\ts (${numerator} ${denominator})`,
+          bars.join('\n|\n'),
+        ].join('\n'),
+        warnings: [...warnings],
+      };
+    }
+
+    function renderScorePreview(lines = variants[selected].lines, isCorrected = false) {
+      const converted = tokensToAlphaTex(lines);
+      const sourceLabel = isCorrected ? '人工修正 tokens' : '当前模型 tokens';
+      if (!lines.some(line => line.trim())) converted.warnings.unshift('内容为空，当前显示占位休止符');
+      elements.previewStatus.textContent = converted.warnings.length
+        ? `${sourceLabel} 已生成候选谱面；${converted.warnings.join('；')}`
+        : `${sourceLabel} 已转为 AlphaTex，并由 alphaTab 渲染为 TAB 候选谱面。`;
+      elements.previewStatus.classList.toggle('warning', converted.warnings.length > 0);
+      if (!window.alphaTab) {
+        elements.previewStatus.textContent = 'alphaTab 未加载，无法生成谱面预览。';
+        elements.previewStatus.classList.add('warning');
+        setPlayerControl('error', 'alphaTab 未加载');
+        return;
+      }
+      if (!scoreApi) {
+        const settings = new alphaTab.Settings();
+        settings.core.scriptFile = new URL('/static/alphatab/alphaTab.js', location.href).href;
+        settings.core.fontDirectory = '/static/alphatab/font/';
+        settings.core.useWorkers = false;
+        settings.player.playerMode = alphaTab.PlayerMode.EnabledAutomatic;
+        settings.player.soundFont = '/static/alphatab/soundfont/sonivox.sf2';
+        settings.player.scrollElement = elements.scorePreview;
+        scoreApi = new alphaTab.AlphaTabApi(elements.scorePreview, settings);
+        scoreApi.error.on(error => {
+          elements.previewStatus.textContent = `谱面转换失败：${error.message || error}`;
+          elements.previewStatus.classList.add('warning');
+          setPlayerControl('error', error.message || String(error));
+        });
+        scoreApi.playerReady.on(() => {
+          playerReady = true;
+          setPlayerControl('ready');
+        });
+        scoreApi.playerStateChanged.on(event => {
+          if (!playerReady) return;
+          setPlayerControl(event.state === alphaTab.synth.PlayerState.Playing ? 'playing' : 'ready');
+        });
+      }
+      const wasPlayerReady = playerReady;
+      playerReady = false;
+      setPlayerControl('loading');
+      if (wasPlayerReady) scoreApi.stop();
+      scoreApi.tex(converted.text);
+    }
+
+    function setPlayerControl(state, error = '') {
+      const playing = state === 'playing';
+      elements.playPauseButton.disabled = state === 'loading' || state === 'error';
+      elements.playPauseButton.title = error;
+      elements.playPauseButton.setAttribute('aria-label', playing ? '暂停候选谱面' : '播放候选谱面');
+      elements.playPauseIcon.textContent = playing ? 'Ⅱ' : '▶';
+      elements.playPauseLabel.textContent = state === 'loading' ? '加载音色…' : state === 'error' ? '播放器不可用' : playing ? '暂停' : '播放';
+    }
+
+    function renderCurrentScorePreview() {
+      const modelTokenText = variants[selected].lines.join('\n');
+      const correctedTokenText = elements.correctedTokens.value;
+      const isCorrected = recordSourceTokenText === modelTokenText && correctedTokenText !== modelTokenText;
+      renderScorePreview((isCorrected ? correctedTokenText : modelTokenText).split(/\r?\n/), isCorrected);
+    }
+
+    function syncRecordForm() {
+      const currentTokenText = variants[selected].lines.join('\n');
+      if (recordSourceTokenText === currentTokenText) return;
+      elements.correctedTokens.value = currentTokenText;
+      elements.errorNote.value = '';
+      elements.includeTraining.checked = false;
+      elements.reviewModeOptions[0].checked = true;
+      updateReviewMode();
+      elements.saveRecordReview.disabled = !variants[selected].hasPrediction;
+      elements.saveRecordReview.textContent = '保存人工结论';
+      elements.recordStatus.textContent = variants[selected].hasPrediction
+        ? `识别记录 ${variants[selected].recordId} 已自动保存，等待人工审核`
+        : '请先运行 OMR，生成识别记录';
+      elements.recordStatus.classList.toggle('error', !variants[selected].hasPrediction);
+      recordSourceTokenText = currentTokenText;
+    }
+
+    function showResultView(view) {
+      const showTokens = view === 'tokens';
+      const showPreview = view === 'preview';
+      elements.tokensTab.setAttribute('aria-selected', String(showTokens));
+      elements.previewTab.setAttribute('aria-selected', String(showPreview));
+      elements.tokensPanel.hidden = !showTokens;
+      elements.previewPanel.hidden = !showPreview;
+      if (showPreview) {
+        syncRecordForm();
+        renderCurrentScorePreview();
+      }
+    }
+
+    function escapeHtml(value) {
+      return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    }
+
+    function renderTokens() {
+      const current = variants[selected];
+      elements.tokens.innerHTML = current.lines.map(escapeHtml).join('\n');
+      elements.measureTotals.textContent = current.measures;
+      if (!elements.previewPanel.hidden) {
+        syncRecordForm();
+        renderCurrentScorePreview();
+      }
+    }
+
+    function select(value) {
+      selected = value;
+      const current = variants[selected];
+      const isEmpty = selected === 'empty';
+      elements.imageEmpty.hidden = !isEmpty;
+      elements.openImagePreview.hidden = isEmpty;
+      if (current.image) elements.sourceImage.src = current.image;
+      else elements.sourceImage.removeAttribute('src');
+      elements.sourceImage.alt = current.alt;
+      renderTokens();
+      const noteCount = current.lines.filter(line => line.includes('N_S')).length;
+      elements.noteCount.textContent = current.hasPrediction ? `${noteCount} notes` : current.alt;
+      elements.structureStatus.textContent = current.hasPrediction ? '候选输出' : '未识别';
+    }
+
+    function setStatus(message, isError = false) {
+      elements.runStatus.textContent = message;
+      elements.runStatus.classList.toggle('error', isError);
+    }
+
+    function readFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener('load', () => resolve(reader.result));
+        reader.addEventListener('error', () => reject(new Error('读取图片失败')));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function selectUpload(file) {
+      if (!file) return;
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        setStatus('只支持 PNG、JPEG 或 WebP 图片。', true);
+        return;
+      }
+      if (file.size > 18 * 1024 * 1024) {
+        setStatus('图片必须小于 18 MB。', true);
+        return;
+      }
+      try {
+        const imageData = await readFile(file);
+        variants.upload = {
+          image: imageData,
+          imageData,
+          alt: file.name,
+          measures: '尚未识别',
+          hasPrediction: false,
+          lines: ['点击“运行 OMR”开始识别'],
+        };
+        select('upload');
+        showResultView('tokens');
+        setStatus('图片已载入。点击“运行 OMR”调用本地模型。');
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    async function pasteClipboardImage() {
+      if (!navigator.clipboard?.read) {
+        setStatus('当前浏览器不能直接读取剪贴板，请在页面上按 ⌘V 粘贴图片。', true);
+        return;
+      }
+      try {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          const imageType = item.types.find(type => ['image/png', 'image/jpeg', 'image/webp'].includes(type));
+          if (!imageType) continue;
+          const blob = await item.getType(imageType);
+          const extension = imageType === 'image/jpeg' ? 'jpg' : imageType.split('/')[1];
+          await selectUpload(new File([blob], `clipboard-${Date.now()}.${extension}`, {type: imageType}));
+          return;
+        }
+        setStatus('剪贴板中没有 PNG、JPEG 或 WebP 图片。', true);
+      } catch (error) {
+        const permissionDenied = error?.name === 'NotAllowedError' || /permission denied/i.test(error?.message || '');
+        setStatus(
+          permissionDenied
+            ? '当前浏览器未授权读取剪贴板。请直接按 ⌘V 粘贴图片，或使用上传按钮。'
+            : `无法读取剪贴板：${error.message}。也可以在页面上直接按 ⌘V。`,
+          true
+        );
+      }
+    }
+
+    function handlePaste(event) {
+      const imageItem = [...(event.clipboardData?.items || [])]
+        .find(item => ['image/png', 'image/jpeg', 'image/webp'].includes(item.type));
+      if (!imageItem) return;
+      const blob = imageItem.getAsFile();
+      if (!blob) return;
+      event.preventDefault();
+      const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1];
+      selectUpload(new File([blob], `clipboard-${Date.now()}.${extension}`, {type: blob.type}));
+    }
+
+    function setRecordStatus(message, isError = false) {
+      elements.recordStatus.textContent = message;
+      elements.recordStatus.classList.toggle('error', isError);
+    }
+
+    function selectedErrorCategories() {
+      return elements.errorCategoryOptions.filter(option => option.checked).map(option => option.value);
+    }
+
+    function updateErrorCategorySummary() {
+      const selected = elements.errorCategoryOptions.filter(option => option.checked);
+      elements.errorCategorySummary.textContent = selected.length
+        ? `${selected.map(option => option.dataset.shortLabel).join('、')}（${selected.length}）`
+        : '请选择错误类型';
+    }
+
+    function errorCategoryPopoverIsOpen() {
+      return elements.errorCategoryPopover.matches(':popover-open');
+    }
+
+    function positionErrorCategoryPopover() {
+      const triggerBox = elements.errorCategoryButton.getBoundingClientRect();
+      const popoverBox = elements.errorCategoryPopover.getBoundingClientRect();
+      const gap = 8;
+      const edge = 12;
+      const left = Math.min(Math.max(edge, triggerBox.left), innerWidth - popoverBox.width - edge);
+      let top = triggerBox.bottom + gap;
+      if (top + popoverBox.height > innerHeight - edge) {
+        top = Math.max(edge, triggerBox.top - popoverBox.height - gap);
+      }
+      elements.errorCategoryPopover.style.left = `${Math.round(left)}px`;
+      elements.errorCategoryPopover.style.top = `${Math.round(top)}px`;
+    }
+
+    function setErrorCategoryPopover(open) {
+      if (open && !errorCategoryPopoverIsOpen()) {
+        elements.errorCategoryPopover.showPopover();
+        positionErrorCategoryPopover();
+      } else if (!open && errorCategoryPopoverIsOpen()) {
+        elements.errorCategoryPopover.hidePopover();
+      }
+    }
+
+    function updateReviewMode() {
+      const current = variants[selected];
+      const labelSource = elements.reviewModeOptions.find(option => option.checked)?.value;
+      const verifiedCorrect = labelSource === 'verified_correct';
+      elements.errorCategoryButton.disabled = verifiedCorrect;
+      elements.correctedTokens.readOnly = verifiedCorrect;
+      if (verifiedCorrect && current?.hasPrediction) {
+        elements.correctedTokens.value = current.lines.join('\n');
+        renderCurrentScorePreview();
+      }
+    }
+
+    async function saveRecordReview() {
+      const current = variants[selected];
+      if (!current.hasPrediction || !current.recordId) {
+        setRecordStatus('请先运行 OMR，生成可审核的识别记录。', true);
+        return;
+      }
+      const labelSource = elements.reviewModeOptions.find(option => option.checked)?.value;
+      const categories = labelSource === 'corrected_error' ? selectedErrorCategories() : [];
+      if (labelSource === 'corrected_error' && !categories.length) {
+        setRecordStatus('请至少选择一种错误类型。', true);
+        setErrorCategoryPopover(true);
+        elements.errorCategoryButton.focus();
+        return;
+      }
+      const payload = {
+        recordId: current.recordId,
+        labelSource,
+        correctedTokenText: elements.correctedTokens.value,
+        categories,
+        note: elements.errorNote.value,
+        includeTraining: elements.includeTraining.checked,
+      };
+
+      elements.saveRecordReview.disabled = true;
+      elements.saveRecordReview.textContent = '正在保存…';
+      setRecordStatus('正在保存人工结论…');
+      try {
+        const response = await fetch('/api/records/review', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `保存失败：${response.status}`);
+        current.reviewed = true;
+        const message = result.disposition === 'duplicate'
+          ? `已保存人工结论；相同标签已存在于 ${result.candidateId}，没有重复加入训练候选。`
+          : result.trainingIncluded
+            ? `已审核 ${result.recordId}，并加入训练候选 manifest。`
+            : `已审核 ${result.recordId}，本次未加入训练候选。`;
+        setRecordStatus(message);
+      } catch (error) {
+        setRecordStatus(error.message, true);
+      } finally {
+        elements.saveRecordReview.disabled = Boolean(current.reviewed);
+        elements.saveRecordReview.textContent = current.reviewed ? '已保存人工结论' : '保存人工结论';
+      }
+    }
+
+    async function runOmr() {
+      const current = variants[selected];
+      if (!current.imageData && !current.sourcePath) {
+        setStatus('请先上传或粘贴一张谱面图片。', true);
+        return;
+      }
+      const decode = document.querySelector('input[name="decode"]:checked').value;
+      const payload = {
+        decode,
+        constrained: elements.constraints.checked,
+        maxDecodeLen: Number(elements.maxDecodeLength.value),
+        sourceLabel: current.alt,
+      };
+      if (current.imageData) payload.imageData = current.imageData;
+      else payload.sourcePath = current.sourcePath;
+
+      elements.runButton.textContent = '识别中…';
+      elements.runButton.disabled = true;
+      setStatus(`${decode === 'beam' ? 'Beam' : 'Greedy'} 正在用 CPU 识别，可能需要几十秒…`);
+      try {
+        const response = await fetch('/api/omr', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `请求失败：${response.status}`);
+        current.lines = result.tokenText.split('\n');
+        current.hasPrediction = true;
+        current.recordId = result.recordId;
+        current.reviewed = false;
+        current.inferenceConfig = {
+          decode,
+          constrained: elements.constraints.checked,
+          maxDecodeLen: Number(elements.maxDecodeLength.value),
+        };
+        current.measures = `${decode} · ${result.elapsedSeconds}s`;
+        recordSourceTokenText = null;
+        elements.saveRecordReview.disabled = false;
+        elements.saveRecordReview.textContent = '保存人工结论';
+        renderTokens();
+        const noteCount = (result.tokenText.match(/\bN_S\d+_F(?:X|\d+)\b/g) || []).length;
+        elements.noteCount.textContent = `${noteCount} notes`;
+        elements.structureStatus.textContent = '候选输出';
+        const warning = result.warnings.length ? `；警告：${result.warnings.join('；')}` : '';
+        setStatus(`识别完成并自动保存为 ${result.recordId}，使用 ${result.metadata.device || 'cpu'}${warning}`);
+      } catch (error) {
+        const hint = location.protocol === 'file:'
+          ? '请先运行 python3 scripts/run_local_omr_ui.py，再打开 http://127.0.0.1:8765/review/omr-workbench.html'
+          : error.message;
+        setStatus(hint, true);
+      } finally {
+        elements.runButton.textContent = '运行 OMR';
+        elements.runButton.disabled = false;
+      }
+    }
+
+    function tokenHelpIsOpen() {
+      return elements.tokenHelpPopover.matches(':popover-open');
+    }
+
+    function setTokenHelpExpanded(expanded) {
+      elements.tokenHelpButton.setAttribute('aria-expanded', String(expanded));
+      elements.tokenHelpLink.setAttribute('aria-expanded', String(expanded));
+    }
+
+    function positionTokenHelp(anchor) {
+      const anchorBox = anchor.getBoundingClientRect();
+      const popoverBox = elements.tokenHelpPopover.getBoundingClientRect();
+      const gap = 12;
+      const anchorVisible = anchorBox.bottom >= 0 && anchorBox.top <= innerHeight;
+      const left = anchorVisible
+        ? Math.min(Math.max(gap, anchorBox.right - popoverBox.width), innerWidth - popoverBox.width - gap)
+        : Math.max(gap, (innerWidth - popoverBox.width) / 2);
+      let top = anchorVisible ? anchorBox.bottom + 8 : Math.max(gap, (innerHeight - popoverBox.height) / 2);
+      if (top + popoverBox.height > innerHeight - gap) {
+        top = anchorVisible ? Math.max(gap, anchorBox.top - popoverBox.height - 8) : gap;
+      }
+      elements.tokenHelpPopover.style.left = `${Math.round(left)}px`;
+      elements.tokenHelpPopover.style.top = `${Math.round(top)}px`;
+    }
+
+    function showTokenHelp(opener, pinned = false, focusClose = false) {
+      clearTimeout(tokenHelpCloseTimer);
+      tokenHelpOpener = opener;
+      tokenHelpPinned = pinned;
+      if (!tokenHelpIsOpen()) elements.tokenHelpPopover.showPopover();
+      positionTokenHelp(opener === elements.tokenHelpLink ? elements.tokenHelpButton : opener);
+      if (focusClose) elements.tokenHelpClose.focus();
+    }
+
+    function hideTokenHelp(restoreFocus = false) {
+      clearTimeout(tokenHelpCloseTimer);
+      tokenHelpPinned = false;
+      if (tokenHelpIsOpen()) elements.tokenHelpPopover.hidePopover();
+      if (restoreFocus) tokenHelpOpener?.focus();
+    }
+
+    function scheduleTokenHelpClose() {
+      clearTimeout(tokenHelpCloseTimer);
+      if (tokenHelpPinned) return;
+      tokenHelpCloseTimer = setTimeout(() => hideTokenHelp(), 180);
+    }
+
+    function handleTokenHelpClick(event) {
+      if (tokenHelpIsOpen() && tokenHelpPinned && tokenHelpOpener === event.currentTarget) {
+        hideTokenHelp(true);
+        return;
+      }
+      showTokenHelp(event.currentTarget, true, true);
+    }
+
+    elements.openImagePreview.addEventListener('click', () => {
+      elements.zoomedSourceImage.src = elements.sourceImage.src;
+      elements.zoomedSourceImage.alt = `${elements.sourceImage.alt}（放大预览）`;
+      elements.imagePreviewDialog.showModal();
+    });
+    elements.closeImagePreview.addEventListener('click', () => elements.imagePreviewDialog.close());
+    elements.imagePreviewDialog.addEventListener('click', event => {
+      if (event.target === elements.imagePreviewDialog) elements.imagePreviewDialog.close();
+    });
+    elements.imagePreviewDialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') elements.imagePreviewDialog.close();
+    });
+    elements.imageInput.addEventListener('change', event => selectUpload(event.target.files[0]));
+    elements.pasteButton.addEventListener('click', pasteClipboardImage);
+    document.addEventListener('paste', handlePaste);
+    elements.maxDecodeLength.addEventListener('input', () => {
+      elements.maxDecodeValue.textContent = elements.maxDecodeLength.value;
+    });
+    elements.resetLength.addEventListener('click', () => {
+      elements.maxDecodeLength.value = '384';
+      elements.maxDecodeValue.textContent = '384';
+    });
+    elements.tokensTab.addEventListener('click', () => showResultView('tokens'));
+    elements.previewTab.addEventListener('click', () => showResultView('preview'));
+    elements.playPauseButton.addEventListener('click', () => {
+      if (playerReady) scoreApi.playPause();
+    });
+    elements.errorCategoryButton.addEventListener('click', () => {
+      setErrorCategoryPopover(!errorCategoryPopoverIsOpen());
+    });
+    elements.errorCategoryOptions.forEach(option => option.addEventListener('change', updateErrorCategorySummary));
+    elements.reviewModeOptions.forEach(option => option.addEventListener('change', updateReviewMode));
+    elements.errorCategoryPopover.addEventListener('toggle', event => {
+      elements.errorCategoryButton.setAttribute('aria-expanded', String(event.newState === 'open'));
+    });
+    elements.correctedTokens.addEventListener('input', () => {
+      clearTimeout(correctedPreviewTimer);
+      correctedPreviewTimer = setTimeout(renderCurrentScorePreview, 250);
+    });
+    elements.tokenHelpButton.addEventListener('mouseenter', () => {
+      if (canHoverTokenHelp.matches && !tokenHelpPinned) showTokenHelp(elements.tokenHelpButton);
+    });
+    elements.tokenHelpButton.addEventListener('mouseleave', scheduleTokenHelpClose);
+    elements.tokenHelpButton.addEventListener('click', handleTokenHelpClick);
+    elements.tokenHelpLink.addEventListener('click', handleTokenHelpClick);
+    elements.tokenHelpPopover.addEventListener('mouseenter', () => clearTimeout(tokenHelpCloseTimer));
+    elements.tokenHelpPopover.addEventListener('mouseleave', scheduleTokenHelpClose);
+    elements.tokenHelpPopover.addEventListener('focusin', () => clearTimeout(tokenHelpCloseTimer));
+    elements.tokenHelpPopover.addEventListener('focusout', scheduleTokenHelpClose);
+    elements.tokenHelpPopover.addEventListener('toggle', event => {
+      const expanded = event.newState === 'open';
+      setTokenHelpExpanded(expanded);
+      if (!expanded) tokenHelpPinned = false;
+    });
+    elements.tokenHelpPopover.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        hideTokenHelp(true);
+      }
+    });
+    elements.tokenHelpClose.addEventListener('click', () => hideTokenHelp(true));
+    window.addEventListener('resize', () => {
+      if (errorCategoryPopoverIsOpen()) positionErrorCategoryPopover();
+      if (tokenHelpIsOpen() && tokenHelpOpener) {
+        positionTokenHelp(tokenHelpOpener === elements.tokenHelpLink ? elements.tokenHelpButton : tokenHelpOpener);
+      }
+    });
+    elements.saveRecordReview.addEventListener('click', saveRecordReview);
+    elements.runButton.addEventListener('click', runOmr);
+    select('empty');
+    if (location.protocol === 'file:') {
+      setStatus('当前是静态预览。请启动本地服务并改用 http://127.0.0.1:8765 页面运行模型。', true);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+torch==2.13.0
+torchvision==0.28.0
+timm==1.0.28
+huggingface_hub==1.28.0
+pillow==12.3.0
