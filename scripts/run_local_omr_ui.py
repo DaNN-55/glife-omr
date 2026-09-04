@@ -9,7 +9,7 @@ import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from omr_record_store import LabelSchema, OmrRecordStore, token_manifest_stats
 
@@ -77,6 +77,42 @@ class OmrHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_GET(self) -> None:
+        route = urlparse(self.path).path
+        try:
+            if route == "/api/records":
+                records = []
+                for summary in self.record_store().list_records():
+                    detail = self.record_store().load_record(summary["recordId"])
+                    records.append({**summary, "imageUrl": self.record_payload(detail)["imageUrl"]})
+                self.send_json(200, {"records": records})
+                return
+            if route.startswith("/api/records/"):
+                record_id = route.removeprefix("/api/records/")
+                self.send_json(200, self.record_payload(self.record_store().load_record(record_id)))
+                return
+        except ValueError as error:
+            self.send_json(404, {"error": str(error)})
+            return
+        except Exception as error:
+            self.send_json(500, {"error": f"{type(error).__name__}: {error}"})
+            return
+        super().do_GET()
+
+    def do_DELETE(self) -> None:
+        route = urlparse(self.path).path
+        if not route.startswith("/api/records/"):
+            self.send_json(404, {"error": "Not found"})
+            return
+        try:
+            record_id = route.removeprefix("/api/records/")
+            self.record_store().delete_record(record_id)
+            self.send_json(200, {"recordId": record_id, "deleted": True})
+        except ValueError as error:
+            self.send_json(400, {"error": str(error)})
+        except Exception as error:
+            self.send_json(500, {"error": f"{type(error).__name__}: {error}"})
 
     def do_POST(self) -> None:
         route = urlparse(self.path).path
@@ -173,6 +209,23 @@ class OmrHandler(SimpleHTTPRequestHandler):
         with tempfile.TemporaryDirectory(prefix="glife-omr-") as temp_name:
             temp_dir = Path(temp_name)
             image_path = self.resolve_image(payload, temp_dir)
+            store = self.record_store()
+            reusable = store.find_reusable_inference(
+                source_image=image_path,
+                decode=decode,
+                constrained=constrained,
+                max_decode_len=max_decode_len,
+            )
+            if reusable:
+                return {
+                    "recordId": reusable["recordId"],
+                    "tokenText": reusable["predictedTokenText"],
+                    "warnings": [],
+                    "metadata": {**self.model_dimensions(), "device": "历史记录"},
+                    "elapsedSeconds": 0,
+                    "reused": True,
+                    "record": self.record_payload(reusable),
+                }
             input_path = temp_dir / "input.json"
             output_path = temp_dir / "output.json"
             input_path.write_text(
@@ -217,7 +270,7 @@ class OmrHandler(SimpleHTTPRequestHandler):
             if not predictions or not isinstance(predictions[0].get("tokenText"), str):
                 raise RuntimeError("推理脚本没有返回 tokenText")
             prediction = predictions[0]
-            record = self.record_store().record_inference(
+            record = store.record_inference(
                 source_image=image_path,
                 predicted_tokens=prediction["tokenText"],
                 source_label=payload.get("sourceLabel"),
@@ -231,7 +284,27 @@ class OmrHandler(SimpleHTTPRequestHandler):
                 "warnings": prediction.get("warnings", []),
                 "metadata": output.get("metadata", {}),
                 "elapsedSeconds": round(time.monotonic() - started, 1),
+                "reused": False,
             }
+
+    @staticmethod
+    def model_dimensions() -> dict:
+        config = json.loads((MODEL_DIR / "config.json").read_text(encoding="utf-8"))
+        args = config.get("args", {})
+        return {"width": int(args.get("width", 1200)), "height": int(args.get("height", 224))}
+
+    @staticmethod
+    def record_payload(detail: dict) -> dict:
+        relative = (detail["recordPath"] / detail["inputFilename"]).relative_to(ROOT)
+        return {
+            key: value
+            for key, value in detail.items()
+            if key not in {"recordPath", "inputFilename"}
+        } | {
+            "sourcePath": relative.as_posix(),
+            "imageUrl": "/" + quote(relative.as_posix()),
+            "modelInput": OmrHandler.model_dimensions(),
+        }
 
     def review_record(self, payload: dict) -> dict:
         record_id = payload.get("recordId")
@@ -268,7 +341,7 @@ class OmrHandler(SimpleHTTPRequestHandler):
             "candidateId": result.candidate_id,
             "disposition": result.disposition,
             "supersededCandidateId": result.superseded_candidate_id,
-            "trainingIncluded": result.disposition == "candidate",
+            "trainingIncluded": result.disposition in {"candidate", "updated"},
             "path": str(result.path),
         }
 

@@ -31,11 +31,16 @@
     .local-status::before { width: 8px; height: 8px; border-radius: 50%; background: #2c7a54; content: ""; }
     .app { display: grid; grid-template-columns: minmax(340px, .82fr) minmax(440px, 1.18fr); gap: 14px; min-height: calc(100vh - 66px); padding: 14px; }
     .left { display: grid; min-width: 0; align-content: start; gap: 12px; }
+    .sticky-controls { position: sticky; z-index: 1; top: 14px; display: grid; align-self: start; gap: 12px; max-height: calc(100vh - 28px); overflow-y: auto; background: #f3f4f6; }
     .right { min-width: 0; overflow: hidden; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
     .card { overflow: hidden; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
     .surface-head, .image-toolbar { display: flex; align-items: center; gap: 10px; min-height: 49px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
     .step-number { display: grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--orange); background: var(--orange-soft); font-size: 12px; font-weight: 500; }
     .surface-title, .image-label { margin: 0; color: #30343a; font-size: 15px; font-weight: 500; }
+    .image-view-switch { display: flex; margin-left: auto; border: 1px solid var(--border); border-radius: 7px; padding: 2px; background: #f7f8f9; }
+    .image-view-switch button { min-height: 26px; border: 0; border-radius: 5px; padding: 0 9px; color: var(--muted); background: transparent; cursor: pointer; font-size: 11px; }
+    .image-view-switch button[aria-pressed="true"] { color: #9b4a13; background: var(--orange-soft); }
+    .image-view-switch button:disabled { cursor: not-allowed; opacity: .45; }
     .image-stage { display: grid; place-items: center; height: 177px; padding: 12px; background: #fff; }
     .image-preview-trigger { display: block; width: 100%; height: 100%; border: 0; padding: 0; background: transparent; cursor: zoom-in; }
     .image-stage img { display: block; width: 100%; height: 100%; min-height: 0; border-radius: 8px; object-fit: contain; outline: 1px solid oklch(0 0 0 / 10%); outline-offset: -1px; }
@@ -45,8 +50,15 @@
     .upload-label:hover, .upload-label:focus-within, .image-tool:hover, .image-tool:focus-visible { color: var(--orange); background: var(--orange-soft); }
     .upload-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
     .image-tool svg, .upload-label svg { width: 20px; height: 20px; }
-    .image-tool:disabled { cursor: not-allowed; opacity: .35; }
     .controls-body { display: grid; gap: 14px; padding: 14px; }
+    .controls { position: relative; z-index: 2; overflow: visible; }
+    .decode-help { position: static; }
+    .decode-help-trigger { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid #c9cdd3; border-radius: 50%; padding: 0; color: var(--muted); background: transparent; cursor: help; font-size: 12px; }
+    .decode-help-trigger:hover, .decode-help-trigger:focus-visible { border-color: #f3aa77; color: var(--orange); background: var(--orange-soft); }
+    .decode-help-tooltip { position: absolute; z-index: 20; top: 44px; left: 12px; display: none; width: calc(100% - 24px); max-width: 340px; border: 1px solid #f0d0b8; border-radius: 10px; padding: 12px; color: #535861; background: #fff8f2; box-shadow: 0 12px 32px rgb(30 35 45 / 18%); font-size: 11px; line-height: 1.5; }
+    .decode-help:hover .decode-help-tooltip, .decode-help:focus-within .decode-help-tooltip { display: grid; gap: 8px; }
+    .decode-help-tooltip p { margin: 0; }
+    .decode-help-tooltip strong { color: #30343a; font-weight: 600; }
     .section-title { margin: 0; color: var(--muted); font-size: 13px; font-weight: 400; }
     .radio-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .radio-card { display: flex; align-items: center; gap: 9px; min-height: 43px; border: 1px solid var(--border); border-radius: 9px; padding: 0 11px; color: var(--muted); font-size: 13px; }
@@ -88,6 +100,28 @@
     .image-preview-shell img { display: block; width: 100%; max-height: calc(94vh - 24px); object-fit: contain; }
     .image-preview-close { position: absolute; z-index: 1; top: 18px; right: 18px; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; color: #fff; background: rgb(25 28 34 / 76%); cursor: pointer; font-size: 22px; line-height: 1; }
     .image-preview-close:hover, .image-preview-close:focus-visible { background: var(--orange); }
+    .history-dialog { width: min(780px, calc(100vw - 24px)); max-width: none; max-height: min(82vh, 760px); margin: auto; overflow: hidden; border: 0; border-radius: 14px; padding: 0; background: #fff; box-shadow: 0 24px 70px rgb(0 0 0 / 28%); }
+    .history-dialog::backdrop { background: rgb(20 24 30 / 56%); }
+    .history-head { display: flex; align-items: flex-start; gap: 14px; padding: 18px; border-bottom: 1px solid var(--border); }
+    .history-head h2 { margin: 0; color: #30343a; font-size: 17px; font-weight: 500; }
+    .history-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .history-close { display: grid; flex: 0 0 auto; place-items: center; width: 34px; height: 34px; margin-left: auto; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; font-size: 22px; }
+    .history-close:hover, .history-close:focus-visible { color: var(--orange); background: var(--orange-soft); }
+    .history-list { display: grid; gap: 10px; max-height: min(516px, calc(82vh - 82px)); overflow-y: auto; padding: 14px 18px 18px; }
+    .history-empty { margin: 28px 0; color: var(--muted); text-align: center; }
+    .history-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; align-items: center; gap: 14px; border: 1px solid var(--border); border-radius: 11px; padding: 10px; }
+    .history-row img { width: 112px; height: 66px; border-radius: 7px; object-fit: contain; background: #f7f8f9; }
+    .history-copy { min-width: 0; }
+    .history-title { overflow: hidden; margin: 0; color: #30343a; font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+    .history-meta { display: flex; flex-wrap: wrap; gap: 5px 9px; margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .history-badge { border-radius: 999px; padding: 3px 7px; color: #786554; background: #f5f1ed; }
+    .history-badge.reviewed { color: #246446; background: #eaf6ef; }
+    .history-badge.candidate { color: #8b430f; background: var(--orange-soft); }
+    .history-actions { display: flex; gap: 7px; }
+    .history-open, .history-delete { min-height: 34px; border: 1px solid #f3aa77; border-radius: 8px; padding: 0 12px; color: #9b4a13; background: var(--orange-soft); cursor: pointer; font-size: 12px; }
+    .history-open:hover, .history-open:focus-visible { color: #fff; background: var(--orange); }
+    .history-delete { border-color: #e1b2aa; color: #9f352b; background: #fff; }
+    .history-delete:hover, .history-delete:focus-visible { color: #fff; background: #b64236; }
     .right-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; min-height: 54px; padding: 11px 14px 5px; }
     .right-title { display: flex; align-items: center; gap: 9px; margin: 0; color: #30343a; font-size: 15px; font-weight: 500; }
     .right-meta { display: grid; justify-items: end; gap: 2px; margin-left: auto; }
@@ -126,13 +160,22 @@
     .diagnosis-help-link { margin-left: 4px; border: 0; padding: 0; color: var(--orange); background: transparent; cursor: pointer; font-size: inherit; text-decoration: underline; text-underline-offset: 2px; }
     .token-card, .preview-card, .record-card { margin: 0 14px 14px; border-radius: 9px; box-shadow: none; outline: 1px solid oklch(0 0 0 / 10%); outline-offset: -1px; }
     .token-card { min-height: 460px; padding: 15px 17px; background: #f8f9fa; }
-    .preview-card { min-height: 280px; margin-bottom: 8px; padding: 10px; }
+    .preview-card { position: relative; min-height: 280px; padding: 10px; }
     .preview-note.warning { color: #9b3b00; }
-    .preview-controls { display: flex; justify-content: flex-end; margin: 0 14px 14px; }
-    .preview-play { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; border: 1px solid #f3aa77; border-radius: 8px; padding: 0 13px; color: #9b4a13; background: var(--orange-soft); cursor: pointer; font-size: 12px; font-weight: 500; }
-    .preview-play:hover, .preview-play:focus-visible { color: #fff; background: var(--orange); }
-    .preview-play:disabled { border-color: var(--border); color: var(--muted); background: #f5f6f7; cursor: wait; opacity: .8; }
-    .preview-play-icon { width: 14px; text-align: center; }
+    .player-toolbar { position: absolute; z-index: 2; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 4px; height: 50px; border: 1px solid rgb(0 0 0 / 8%); border-radius: 16px; padding: 8px; background: rgb(255 255 255 / 98%); box-shadow: inset 0 0 0 .5px rgb(0 0 0 / 8%), 0 0 0 1px rgb(0 0 0 / 6%), 0 6px 16px rgb(78 50 23 / 4%); backdrop-filter: blur(24px); }
+    .player-button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 16px; padding: 0; color: rgb(36 39 44 / 70%); background: transparent; cursor: pointer; transition: color .15s ease, background .15s ease; }
+    .player-button:hover, .player-button:focus-visible { color: #24272c; background: rgb(36 39 44 / 6%); }
+    .player-button[aria-pressed="true"] { color: var(--orange); background: var(--orange-soft); }
+    .player-button:disabled { color: rgb(36 39 44 / 35%); background: transparent; cursor: not-allowed; }
+    .player-button svg { width: 18px; height: 18px; }
+    .player-button .player-pause-icon { display: none; }
+    .player-button[data-state="playing"] .player-play-icon { display: none; }
+    .player-button[data-state="playing"] .player-pause-icon { display: block; }
+    .timbre-button .timbre-electric-icon { display: none; }
+    .timbre-button[data-timbre="27"] { color: var(--orange); background: var(--orange-soft); }
+    .timbre-button[data-timbre="27"] .timbre-acoustic-icon { display: none; }
+    .timbre-button[data-timbre="27"] .timbre-electric-icon { display: block; }
+    .player-divider { width: 1px; height: 24px; margin: 0 4px; background: rgb(36 39 44 / 10%); }
     .at-cursor-bar { background: rgb(239 101 8 / 10%); }
     .at-cursor-beat { width: 2px; background: var(--orange); }
     .at-highlight * { fill: var(--orange); stroke: var(--orange); }
@@ -140,14 +183,14 @@
     .record-title { margin: 0; color: #30343a; font-size: 14px; font-weight: 500; }
     .record-intro { margin: 4px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
     .record-grid { display: grid; grid-template-columns: minmax(180px, .75fr) minmax(260px, 1.25fr); gap: 14px; align-items: start; }
-    .record-meta { display: grid; gap: 12px; }
-    .record-field { display: grid; gap: 7px; margin: 0; color: #535861; font-size: 13px; font-weight: 500; }
+    .record-meta { display: grid; min-width: 0; gap: 12px; }
+    .record-field { display: grid; min-width: 0; gap: 7px; margin: 0; color: #535861; font-size: 13px; font-weight: 500; }
     .record-field select, .record-field textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: #2c2f34; background: #fff; font: inherit; line-height: 1.5; }
     .record-field textarea { min-height: 92px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 400; }
-    .record-field .tokens-editor { min-height: 190px; }
+    .record-field .tokens-editor { min-height: 250px; }
     .error-category-field { position: relative; }
-    .error-category-trigger { display: flex; align-items: center; gap: 8px; min-height: 42px; width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 0 11px; color: #2c2f34; background: #fff; cursor: pointer; text-align: left; }
-    .error-category-trigger span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .error-category-trigger { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 42px; width: 100%; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; padding: 0 11px; color: #2c2f34; background: #fff; cursor: pointer; text-align: left; }
+    .error-category-trigger span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .error-category-trigger svg { flex: 0 0 auto; width: 16px; height: 16px; margin-left: auto; color: var(--muted); transition: transform .15s ease; }
     .error-category-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
     .error-category-trigger:disabled { cursor: not-allowed; opacity: .5; }
@@ -164,12 +207,13 @@
     .record-actions .save-sample { flex: 0 0 auto; width: auto; margin-left: auto; padding: 11px 16px; }
     .record-status { margin: 0; color: var(--muted); font-size: 12px; text-align: left; }
     .result-footer { padding: 0 14px 13px; color: var(--muted); font-size: 11px; text-align: right; }
-    #scorePreview { min-height: 260px; overflow: auto; }
+    #scorePreview { min-height: 260px; overflow: auto; padding-bottom: 50px; }
     [hidden] { display: none !important; }
     pre { margin: 0; color: #2c2f34; font: 14px/1.62 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
     mark { border-radius: 3px; padding: 1px 3px; color: #91420c; background: #ffe1c6; box-shadow: inset 0 0 0 1px #f4ae75; }
     @media (max-width: 900px) {
       .app { grid-template-columns: 1fr; }
+      .sticky-controls { position: static; max-height: none; overflow: visible; }
       .right { min-height: 620px; }
     }
     @media (max-width: 650px) {
@@ -194,6 +238,10 @@
       .token-help-popover > .token-help-intro { padding: 0 14px 14px; }
       .token-help-grid { grid-template-columns: 1fr; }
       .token-definition { grid-template-columns: minmax(95px, .8fr) minmax(0, 1.4fr); }
+      .history-row { grid-template-columns: 84px minmax(0, 1fr); }
+      .history-row img { width: 84px; height: 56px; }
+      .history-actions { grid-column: 1 / -1; }
+      .history-open, .history-delete { flex: 1; }
     }
   </style>
   <script src="/static/alphatab/alphaTab.js"></script>
@@ -211,10 +259,15 @@
   </header>
   <main class="app">
     <section class="left">
+      <div class="sticky-controls">
       <div class="card image-card">
         <div class="image-toolbar">
           <span class="step-number">1</span>
           <h2 class="image-label">输入谱面</h2>
+          <div class="image-view-switch" role="group" aria-label="输入图片视图">
+            <button id="rawImageView" type="button" aria-pressed="true">原图</button>
+            <button id="modelInputView" type="button" aria-pressed="false" title="运行 OMR 后可查看按模型尺寸生成的灰度补白图" disabled>模型输入</button>
+          </div>
         </div>
         <div class="image-stage">
           <p id="imageEmpty" class="image-empty">上传或粘贴一张单系统谱面图片</p>
@@ -227,11 +280,11 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 15v4h14v-4"/></svg>
             <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp">
           </label>
-          <button class="image-tool" type="button" title="摄像头输入（未接入）" aria-label="摄像头输入，当前未接入" disabled>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v10H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-          </button>
           <button id="pasteButton" class="image-tool" type="button" title="从剪贴板粘贴图片，也可直接按 ⌘V" aria-label="从剪贴板粘贴图片">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 5h6v3H9z"/><path d="M7 6H5v14h14V6h-2"/></svg>
+          </button>
+          <button id="historyButton" class="image-tool" type="button" title="历史记录" aria-label="历史记录" aria-haspopup="dialog" aria-controls="historyDialog">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"/><path d="M4 4v4.6h4.6M12 7v5l3 2"/></svg>
           </button>
         </div>
       </div>
@@ -240,6 +293,15 @@
         <div class="surface-head">
           <span class="step-number">2</span>
           <h2 class="surface-title">解码设置</h2>
+          <span class="decode-help">
+            <button class="decode-help-trigger" type="button" aria-label="查看解码参数说明" aria-describedby="decodeHelpTooltip">?</button>
+            <span id="decodeHelpTooltip" class="decode-help-tooltip" role="tooltip">
+              <p><strong>greedy（默认）</strong>每一步只选择概率最高的 token，速度最快，适合日常基线识别。</p>
+              <p><strong>constrained beam</strong>保留 3 条候选后选择整体得分更高的结果，速度较慢；greedy 出现结构错误时再尝试。</p>
+              <p><strong>Token constraints（默认开启）</strong>按谱面语法限制或降低不合理 token 组合的分数，减少结构错误；仅在排查约束误伤时关闭。</p>
+              <p><strong>Max decode length（默认 384）</strong>单次最多生成的 token 数；结果提示被截断时调高，普通单系统保持默认值。</p>
+            </span>
+          </span>
         </div>
         <div class="controls-body">
           <div class="radio-row">
@@ -267,6 +329,7 @@
         </div>
         <p class="diagnosis-foot">若预览提示“暂未转换”，代表技巧可能已识别，但转换映射尚未覆盖。<button id="tokenHelpLink" class="diagnosis-help-link" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tokenHelpPopover">查看 Token 说明</button></p>
       </aside>
+      </div>
       <p class="model-footnote"><sup>*</sup> 当前模型来源：<a href="https://huggingface.co/kk9293/guitar-tab-omr" target="_blank" rel="noopener noreferrer">kk9293/guitar-tab-omr ↗</a></p>
     </section>
 
@@ -350,17 +413,30 @@
         <div class="card token-card"><pre id="tokens" aria-live="polite"></pre></div>
       </div>
       <div id="previewPanel" role="tabpanel" aria-labelledby="previewTab" hidden>
-        <p id="previewStatus" class="preview-note">当前 tokens 转为 AlphaTex 后由 alphaTab 渲染；这是候选预览，不是正式导出。</p>
-        <div class="card preview-card"><div id="scorePreview" aria-label="OMR tokens 转换后的 TAB 谱面"></div></div>
-        <div class="preview-controls">
-          <button id="playPauseButton" class="preview-play" type="button" disabled aria-label="播放候选谱面">
-            <span id="playPauseIcon" class="preview-play-icon" aria-hidden="true">▶</span>
-            <span id="playPauseLabel">加载音色…</span>
-          </button>
+        <p id="previewStatus" class="preview-note">当前 tokens 转为 AlphaTex 后由 alphaTab 渲染；导出后请在 Guitar Pro 复核。</p>
+        <div class="card preview-card">
+          <div id="scorePreview" aria-label="OMR tokens 转换后的 TAB 谱面"></div>
+          <div class="player-toolbar" role="group" aria-label="乐谱播放控制">
+            <button id="playPauseButton" class="player-button" type="button" disabled aria-label="播放候选谱面" title="加载音色…" data-state="loading">
+              <svg class="player-play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18.9 12.8c-.4 1.4-2 2.3-5.4 4.2-3.2 1.9-4.8 2.8-6.1 2.4C5.8 19 5 16.8 5 12s.8-7 2.4-7.4c1.3-.4 2.9.5 6.1 2.4 3.4 1.9 5 2.8 5.4 4.2.1.5.1 1.1 0 1.6Z"/></svg>
+              <svg class="player-pause-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg>
+            </button>
+            <button id="loopButton" class="player-button" type="button" disabled aria-label="循环整首乐谱" title="循环整首乐谱" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 4l2 2-2 2"/><path d="M3 11V9a3 3 0 0 1 3-3h13M7 20l-2-2 2-2"/><path d="M21 13v2a3 3 0 0 1-3 3H5"/><path d="M12 9v6"/></svg>
+            </button>
+            <button id="timbreButton" class="player-button timbre-button" type="button" data-timbre="25" aria-label="播放音色：钢弦木吉他；点击切换为清音电吉他" title="钢弦木吉他 · 点击切换">
+              <svg class="timbre-acoustic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11.9 12.1 4.514-4.514"/><path d="M20.1 2.3a1 1 0 0 0-1.4 0l-1.114 1.114A2 2 0 0 0 17 4.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 17.828 7h1.344a2 2 0 0 0 1.414-.586L21.7 5.3a1 1 0 0 0 0-1.4z"/><path d="m6 16 2 2"/><path d="M8.23 9.85A3 3 0 0 1 11 8a5 5 0 0 1 5 5 3 3 0 0 1-1.85 2.77l-.92.38A2 2 0 0 0 12 18a4 4 0 0 1-4 4 6 6 0 0 1-6-6 4 4 0 0 1 4-4 2 2 0 0 0 1.85-1.23z"/></svg>
+              <svg class="timbre-electric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11.9 12.1 4.514-4.514"/><path d="M20.1 2.3a1 1 0 0 0-1.4 0l-1.114 1.114A2 2 0 0 0 17 4.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 17.828 7h1.344a2 2 0 0 0 1.414-.586L21.7 5.3a1 1 0 0 0 0-1.4z"/><path d="M8.23 9.85A3 3 0 0 1 11 8a5 5 0 0 1 5 5 3 3 0 0 1-1.85 2.77l-.92.38A2 2 0 0 0 12 18a4 4 0 0 1-4 4 6 6 0 0 1-6-6 4 4 0 0 1 4-4 2 2 0 0 0 1.85-1.23z"/><path d="m6.8 13.8-1.5 2.4h1.6l-1 2.4 2.5-3.2H6.9l1-1.6"/></svg>
+            </button>
+            <span class="player-divider" aria-hidden="true"></span>
+            <button id="exportGpButton" class="player-button" type="button" disabled aria-label="导出当前预览为 Guitar Pro 文件" title="下载 Guitar Pro 文件">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M5 19h14"/></svg>
+            </button>
+          </div>
         </div>
         <section class="card record-card" aria-labelledby="recordTitle">
           <h3 id="recordTitle" class="record-title">人工审核识别记录</h3>
-          <p class="record-intro">识别成功后，图片、模型原始 tokens 和 Decode 配置已经自动保存。人工确认结论后，可明确选择是否加入训练候选。</p>
+          <p class="record-intro">识别成功后，图片、模型原始 tokens 和 Decode 配置已经自动保存。人工结论保存后会更新训练候选；候选素材尚未用于训练。</p>
           <div class="record-grid">
             <div class="record-meta">
               <div class="record-field">
@@ -404,12 +480,11 @@
           </div>
           <div class="record-actions">
             <p id="recordStatus" class="record-status" aria-live="polite">尚未产生识别记录</p>
-            <label class="check-row"><input id="includeTraining" type="checkbox">加入训练素材</label>
             <button id="saveRecordReview" class="save-sample" type="button" disabled>保存人工结论</button>
           </div>
         </section>
       </div>
-      <footer class="result-footer">候选输出 · 不正式导出</footer>
+      <footer class="result-footer">候选预览 · 导出后请在 Guitar Pro 复核</footer>
     </section>
   </main>
   <dialog id="imagePreviewDialog" class="image-preview-dialog" aria-label="输入谱面放大预览">
@@ -417,6 +492,16 @@
       <button id="closeImagePreview" class="image-preview-close" type="button" aria-label="关闭放大预览">×</button>
       <img id="zoomedSourceImage" alt="">
     </div>
+  </dialog>
+  <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
+    <div class="history-head">
+      <div>
+        <h2 id="historyTitle">历史识别记录</h2>
+        <p id="historySummary">完全相同的识别结果会折叠显示</p>
+      </div>
+      <button id="closeHistory" class="history-close" type="button" aria-label="关闭历史记录">×</button>
+    </div>
+    <div id="historyList" class="history-list" aria-live="polite"></div>
   </dialog>
 
   <script>
@@ -433,12 +518,19 @@
     const elements = {
       imageEmpty: document.querySelector('#imageEmpty'),
       sourceImage: document.querySelector('#sourceImage'),
+      rawImageView: document.querySelector('#rawImageView'),
+      modelInputView: document.querySelector('#modelInputView'),
       openImagePreview: document.querySelector('#openImagePreview'),
       imagePreviewDialog: document.querySelector('#imagePreviewDialog'),
       closeImagePreview: document.querySelector('#closeImagePreview'),
       zoomedSourceImage: document.querySelector('#zoomedSourceImage'),
       imageInput: document.querySelector('#imageInput'),
       pasteButton: document.querySelector('#pasteButton'),
+      historyButton: document.querySelector('#historyButton'),
+      historyDialog: document.querySelector('#historyDialog'),
+      closeHistory: document.querySelector('#closeHistory'),
+      historyList: document.querySelector('#historyList'),
+      historySummary: document.querySelector('#historySummary'),
       measureTotals: document.querySelector('#measureTotals'),
       noteCount: document.querySelector('#noteCount'),
       structureStatus: document.querySelector('#structureStatus'),
@@ -455,9 +547,10 @@
       previewPanel: document.querySelector('#previewPanel'),
       previewStatus: document.querySelector('#previewStatus'),
       scorePreview: document.querySelector('#scorePreview'),
+      timbreButton: document.querySelector('#timbreButton'),
+      exportGpButton: document.querySelector('#exportGpButton'),
       playPauseButton: document.querySelector('#playPauseButton'),
-      playPauseIcon: document.querySelector('#playPauseIcon'),
-      playPauseLabel: document.querySelector('#playPauseLabel'),
+      loopButton: document.querySelector('#loopButton'),
       errorCategoryButton: document.querySelector('#errorCategoryButton'),
       errorCategorySummary: document.querySelector('#errorCategorySummary'),
       errorCategoryPopover: document.querySelector('#errorCategoryPopover'),
@@ -465,7 +558,6 @@
       reviewModeOptions: [...document.querySelectorAll('input[name="labelSource"]')],
       correctedTokens: document.querySelector('#correctedTokens'),
       errorNote: document.querySelector('#errorNote'),
-      includeTraining: document.querySelector('#includeTraining'),
       saveRecordReview: document.querySelector('#saveRecordReview'),
       recordStatus: document.querySelector('#recordStatus'),
       tokenHelpPopover: document.querySelector('#tokenHelpPopover'),
@@ -474,10 +566,17 @@
       tokenHelpLink: document.querySelector('#tokenHelpLink'),
     };
     let selected = 'empty';
+    let imageView = 'raw';
     let scoreApi = null;
+    let currentPreviewScore = null;
     let playerReady = false;
+    let playbackInstrument = 25;
     let recordSourceTokenText = null;
     let correctedPreviewTimer = null;
+    let reviewSaveTimer = null;
+    let reviewSavePromise = null;
+    let reviewSaveState = 'idle';
+    let reviewEditVersion = 0;
     let tokenHelpOpener = null;
     let tokenHelpCloseTimer = null;
     let tokenHelpPinned = false;
@@ -503,7 +602,7 @@
       NTECH_VIBRATO_2: 'vw',
     };
 
-    function tokensToAlphaTex(lines) {
+    function tokensToAlphaTex(lines, instrument = 25) {
       let tempo = 120;
       let numerator = 4;
       let denominator = 4;
@@ -593,6 +692,7 @@
           '\\title "OMR candidate preview"',
           `\\tempo ${tempo}`,
           '\\track "Guitar"',
+          `\\instrument ${instrument}`,
           '\\staff {tabs}',
           '\\tuning (E4 B3 G3 D3 A2 E2)',
           `\\ts (${numerator} ${denominator})`,
@@ -603,8 +703,10 @@
     }
 
     function renderScorePreview(lines = variants[selected].lines, isCorrected = false) {
-      const converted = tokensToAlphaTex(lines);
+      const converted = tokensToAlphaTex(lines, playbackInstrument);
       const sourceLabel = isCorrected ? '人工修正 tokens' : '当前模型 tokens';
+      currentPreviewScore = null;
+      elements.exportGpButton.disabled = true;
       if (!lines.some(line => line.trim())) converted.warnings.unshift('内容为空，当前显示占位休止符');
       elements.previewStatus.textContent = converted.warnings.length
         ? `${sourceLabel} 已生成候选谱面；${converted.warnings.join('；')}`
@@ -622,13 +724,20 @@
         settings.core.fontDirectory = '/static/alphatab/font/';
         settings.core.useWorkers = false;
         settings.player.playerMode = alphaTab.PlayerMode.EnabledAutomatic;
-        settings.player.soundFont = '/static/alphatab/soundfont/sonivox.sf2';
+        settings.player.soundFont = '/static/alphatab/soundfont/sonivox.sf3';
         settings.player.scrollElement = elements.scorePreview;
         scoreApi = new alphaTab.AlphaTabApi(elements.scorePreview, settings);
         scoreApi.error.on(error => {
+          currentPreviewScore = null;
+          playerReady = false;
+          elements.exportGpButton.disabled = true;
           elements.previewStatus.textContent = `谱面转换失败：${error.message || error}`;
           elements.previewStatus.classList.add('warning');
           setPlayerControl('error', error.message || String(error));
+        });
+        scoreApi.scoreLoaded.on(score => {
+          currentPreviewScore = score;
+          elements.exportGpButton.disabled = !variants[selected].hasPrediction;
         });
         scoreApi.playerReady.on(() => {
           playerReady = true;
@@ -646,13 +755,31 @@
       scoreApi.tex(converted.text);
     }
 
+    function exportCurrentGp() {
+      if (!currentPreviewScore || !variants[selected].hasPrediction) return;
+      try {
+        const bytes = new alphaTab.exporter.Gp7Exporter().export(currentPreviewScore);
+        const downloadUrl = URL.createObjectURL(new Blob([bytes], {type: 'application/octet-stream'}));
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `glife-omr-${variants[selected].recordId || 'preview'}.gp`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      } catch (error) {
+        elements.previewStatus.textContent = `Guitar Pro 导出失败：${error.message || error}`;
+        elements.previewStatus.classList.add('warning');
+      }
+    }
+
     function setPlayerControl(state, error = '') {
       const playing = state === 'playing';
       elements.playPauseButton.disabled = state === 'loading' || state === 'error';
-      elements.playPauseButton.title = error;
+      elements.loopButton.disabled = state === 'loading' || state === 'error';
+      elements.playPauseButton.title = error || (playing ? '暂停' : '播放');
       elements.playPauseButton.setAttribute('aria-label', playing ? '暂停候选谱面' : '播放候选谱面');
-      elements.playPauseIcon.textContent = playing ? 'Ⅱ' : '▶';
-      elements.playPauseLabel.textContent = state === 'loading' ? '加载音色…' : state === 'error' ? '播放器不可用' : playing ? '暂停' : '播放';
+      elements.playPauseButton.dataset.state = state;
     }
 
     function renderCurrentScorePreview() {
@@ -667,13 +794,11 @@
       if (recordSourceTokenText === currentTokenText) return;
       elements.correctedTokens.value = currentTokenText;
       elements.errorNote.value = '';
-      elements.includeTraining.checked = false;
       elements.reviewModeOptions[0].checked = true;
       updateReviewMode();
-      elements.saveRecordReview.disabled = !variants[selected].hasPrediction;
-      elements.saveRecordReview.textContent = '保存人工结论';
+      setReviewSaveState('idle');
       elements.recordStatus.textContent = variants[selected].hasPrediction
-        ? `识别记录 ${variants[selected].recordId} 已自动保存，等待人工审核`
+        ? `识别记录 ${variants[selected].recordId} 已自动保存，等待整理`
         : '请先运行 OMR，生成识别记录';
       elements.recordStatus.classList.toggle('error', !variants[selected].hasPrediction);
       recordSourceTokenText = currentTokenText;
@@ -706,15 +831,25 @@
       }
     }
 
+    function setImageView(view) {
+      const current = variants[selected];
+      imageView = view === 'model' && current.modelInputImage ? 'model' : 'raw';
+      elements.rawImageView.setAttribute('aria-pressed', String(imageView === 'raw'));
+      elements.modelInputView.setAttribute('aria-pressed', String(imageView === 'model'));
+      elements.modelInputView.disabled = !current.modelInputImage;
+      const image = imageView === 'model' ? current.modelInputImage : current.image;
+      if (image) elements.sourceImage.src = image;
+      else elements.sourceImage.removeAttribute('src');
+      elements.sourceImage.alt = imageView === 'model' ? `${current.alt}（模型输入）` : current.alt;
+    }
+
     function select(value) {
       selected = value;
       const current = variants[selected];
       const isEmpty = selected === 'empty';
       elements.imageEmpty.hidden = !isEmpty;
       elements.openImagePreview.hidden = isEmpty;
-      if (current.image) elements.sourceImage.src = current.image;
-      else elements.sourceImage.removeAttribute('src');
-      elements.sourceImage.alt = current.alt;
+      setImageView('raw');
       renderTokens();
       const noteCount = current.lines.filter(line => line.includes('N_S')).length;
       elements.noteCount.textContent = current.hasPrediction ? `${noteCount} notes` : current.alt;
@@ -735,6 +870,23 @@
       });
     }
 
+    async function createModelInputImage(source, width, height) {
+      const image = new Image();
+      image.src = source;
+      await image.decode();
+      const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, width, height);
+      context.filter = 'grayscale(1)';
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(image, 0, 0, Math.round(image.naturalWidth * scale), Math.round(image.naturalHeight * scale));
+      return canvas.toDataURL('image/png');
+    }
+
     async function selectUpload(file) {
       if (!file) return;
       if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
@@ -743,6 +895,10 @@
       }
       if (file.size > 18 * 1024 * 1024) {
         setStatus('图片必须小于 18 MB。', true);
+        return;
+      }
+      if (!await canLeaveReview('载入新图片')) {
+        elements.imageInput.value = '';
         return;
       }
       try {
@@ -801,9 +957,227 @@
       selectUpload(new File([blob], `clipboard-${Date.now()}.${extension}`, {type: blob.type}));
     }
 
+    function formatHistoryTime(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', {hour12: false});
+    }
+
+    function renderHistory(records) {
+      elements.historyList.replaceChildren();
+      elements.historySummary.textContent = `${records.length} 组记录 · 完全相同的识别结果已折叠`;
+      if (!records.length) {
+        const empty = document.createElement('p');
+        empty.className = 'history-empty';
+        empty.textContent = '还没有识别记录';
+        elements.historyList.append(empty);
+        return;
+      }
+      for (const record of records) {
+        const row = document.createElement('article');
+        row.className = 'history-row';
+        const image = document.createElement('img');
+        image.src = record.imageUrl;
+        image.alt = record.source || record.recordId;
+        const copy = document.createElement('div');
+        copy.className = 'history-copy';
+        const title = document.createElement('p');
+        title.className = 'history-title';
+        title.textContent = record.source || record.recordId;
+        const meta = document.createElement('p');
+        meta.className = 'history-meta';
+        const status = document.createElement('span');
+        status.className = `history-badge${record.status === 'reviewed' ? ' reviewed' : ''}`;
+        status.textContent = record.status === 'reviewed' ? '已保存结论' : '待整理';
+        const config = document.createElement('span');
+        config.textContent = `${record.decode || '未知'} · ${record.constrained ? '约束开' : '约束关'} · ${record.maxDecodeLen || '—'}`;
+        const time = document.createElement('span');
+        time.textContent = formatHistoryTime(record.updatedAt || record.createdAt);
+        meta.append(status, config, time);
+        if (record.trainingCandidate) {
+          const candidate = document.createElement('span');
+          candidate.className = 'history-badge candidate';
+          candidate.textContent = '训练候选';
+          meta.append(candidate);
+        }
+        if (record.duplicateCount > 1) {
+          const duplicates = document.createElement('span');
+          duplicates.className = 'history-badge';
+          duplicates.textContent = `相同识别结果 × ${record.duplicateCount}`;
+          meta.append(duplicates);
+        }
+        copy.append(title, meta);
+        const actions = document.createElement('div');
+        actions.className = 'history-actions';
+        const open = document.createElement('button');
+        open.className = 'history-open';
+        open.type = 'button';
+        open.textContent = '打开';
+        open.addEventListener('click', () => openHistoryRecord(record.recordId));
+        const remove = document.createElement('button');
+        remove.className = 'history-delete';
+        remove.type = 'button';
+        remove.textContent = '删除';
+        remove.addEventListener('click', () => deleteHistoryRecord(record));
+        actions.append(open, remove);
+        row.append(image, copy, actions);
+        elements.historyList.append(row);
+      }
+    }
+
+    async function loadHistory() {
+      elements.historyList.innerHTML = '<p class="history-empty">正在读取历史记录…</p>';
+      try {
+        const response = await fetch('/api/records');
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `读取失败：${response.status}`);
+        renderHistory(result.records);
+      } catch (error) {
+        elements.historyList.innerHTML = '';
+        const message = document.createElement('p');
+        message.className = 'history-empty';
+        message.textContent = error.message;
+        elements.historyList.append(message);
+      }
+    }
+
+    async function showHistory() {
+      elements.historyDialog.showModal();
+      await loadHistory();
+    }
+
+    async function deleteHistoryRecord(record) {
+      const name = record.source || record.recordId;
+      const candidateWarning = record.trainingCandidate ? '，并同步移出训练候选' : '';
+      if (!window.confirm(`确定删除“${name}”吗？\n\n识别记录将永久删除${candidateWarning}，且无法恢复。`)) return;
+      if (variants[selected]?.recordId === record.recordId && !await canLeaveReview('删除当前记录')) return;
+      try {
+        const response = await fetch(`/api/records/${encodeURIComponent(record.recordId)}`, {
+          method: 'DELETE',
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `删除失败：${response.status}`);
+        if (variants[selected]?.recordId === record.recordId) {
+          recordSourceTokenText = null;
+          setReviewSaveState('idle');
+          select('empty');
+          showResultView('tokens');
+          setStatus(`历史记录 ${record.recordId} 已删除`);
+        }
+        await loadHistory();
+      } catch (error) {
+        elements.historySummary.textContent = error.message;
+      }
+    }
+
+    function applyRecordReview(record) {
+      const current = variants[selected];
+      current.reviewed = record.status === 'reviewed';
+      current.trainingCandidate = Boolean(record.trainingCandidate);
+      const labelSource = record.labelSource || 'corrected_error';
+      elements.reviewModeOptions.forEach(option => {
+        option.checked = option.value === labelSource;
+      });
+      const categories = record.categories?.length ? record.categories : ['omr_string_fret'];
+      elements.errorCategoryOptions.forEach(option => {
+        option.checked = categories.includes(option.value);
+      });
+      elements.correctedTokens.value = record.correctedTokenText || record.predictedTokenText;
+      elements.errorNote.value = record.note || '';
+      recordSourceTokenText = record.predictedTokenText;
+      updateErrorCategorySummary();
+      updateReviewMode();
+      setReviewSaveState(current.reviewed ? 'saved' : 'idle');
+      setRecordStatus(current.reviewed
+        ? `识别记录 ${current.recordId} 已保存结论${current.trainingCandidate ? ' · 训练候选（尚未用于训练）' : ''}`
+        : `识别记录 ${current.recordId} 等待整理`);
+    }
+
+    async function openHistoryRecord(recordId) {
+      try {
+        const response = await fetch(`/api/records/${encodeURIComponent(recordId)}`);
+        const record = await response.json();
+        if (!response.ok) throw new Error(record.error || `读取失败：${response.status}`);
+        if (!await canLeaveReview('打开另一条历史记录')) return;
+        variants.history = {
+          image: record.imageUrl,
+          sourcePath: record.sourcePath,
+          alt: record.source || record.recordId,
+          measures: `${record.decode || '未知配置'} · 历史记录`,
+          hasPrediction: true,
+          lines: record.predictedTokenText.split('\n'),
+          recordId: record.recordId,
+          reviewed: record.status === 'reviewed',
+          inferenceConfig: {
+            decode: record.decode,
+            constrained: record.constrained,
+            maxDecodeLen: record.maxDecodeLen,
+          },
+        };
+        variants.history.modelInputImage = await createModelInputImage(
+          record.imageUrl,
+          Number(record.modelInput.width),
+          Number(record.modelInput.height)
+        );
+        recordSourceTokenText = record.predictedTokenText;
+        select('history');
+        const decodeOption = document.querySelector(`input[name="decode"][value="${record.decode}"]`);
+        if (decodeOption) decodeOption.checked = true;
+        if (typeof record.constrained === 'boolean') elements.constraints.checked = record.constrained;
+        if (Number.isInteger(record.maxDecodeLen)) {
+          elements.maxDecodeLength.value = record.maxDecodeLen;
+          elements.maxDecodeValue.textContent = record.maxDecodeLen;
+        }
+        applyRecordReview(record);
+        elements.historyDialog.close();
+        showResultView('preview');
+        setStatus('已打开历史记录 · 未重新运行 OMR');
+      } catch (error) {
+        elements.historySummary.textContent = error.message;
+      }
+    }
+
     function setRecordStatus(message, isError = false) {
       elements.recordStatus.textContent = message;
       elements.recordStatus.classList.toggle('error', isError);
+    }
+
+    function setReviewSaveState(state) {
+      reviewSaveState = state;
+      const labels = {
+        idle: '保存人工结论',
+        dirty: '立即保存',
+        saving: '保存中…',
+        saved: '已保存',
+        error: '重试保存',
+      };
+      elements.saveRecordReview.textContent = labels[state];
+      elements.saveRecordReview.disabled = !variants[selected]?.hasPrediction || state === 'saving' || state === 'saved';
+    }
+
+    function scheduleReviewSave() {
+      clearTimeout(reviewSaveTimer);
+      reviewSaveTimer = setTimeout(() => saveRecordReview(true), 500);
+    }
+
+    function markReviewDirty() {
+      if (!variants[selected]?.hasPrediction) return;
+      reviewEditVersion += 1;
+      setReviewSaveState('dirty');
+      setRecordStatus('有尚未保存的人工结论；停止编辑 500ms 后自动保存。');
+      scheduleReviewSave();
+    }
+
+    async function canLeaveReview(action) {
+      if (reviewSavePromise) {
+        if (!window.confirm(`人工结论正在保存。等待保存完成后再${action}吗？`)) return false;
+        await reviewSavePromise;
+      }
+      if (!['dirty', 'error', 'saving'].includes(reviewSaveState)) return true;
+      if (!window.confirm(`有尚未保存的人工结论。确定${action}并放弃这些修改吗？`)) return false;
+      clearTimeout(reviewSaveTimer);
+      reviewEditVersion += 1;
+      setReviewSaveState('idle');
+      return true;
     }
 
     function selectedErrorCategories() {
@@ -848,61 +1222,84 @@
       const current = variants[selected];
       const labelSource = elements.reviewModeOptions.find(option => option.checked)?.value;
       const verifiedCorrect = labelSource === 'verified_correct';
-      elements.errorCategoryButton.disabled = verifiedCorrect;
-      elements.correctedTokens.readOnly = verifiedCorrect;
+      const unavailable = !current?.hasPrediction;
+      elements.reviewModeOptions.forEach(option => option.disabled = unavailable);
+      elements.errorCategoryOptions.forEach(option => option.disabled = verifiedCorrect || unavailable);
+      elements.errorCategoryButton.disabled = verifiedCorrect || unavailable;
+      elements.correctedTokens.readOnly = verifiedCorrect || unavailable;
+      elements.errorNote.readOnly = unavailable;
       if (verifiedCorrect && current?.hasPrediction) {
         elements.correctedTokens.value = current.lines.join('\n');
         renderCurrentScorePreview();
       }
     }
 
-    async function saveRecordReview() {
+    async function saveRecordReview(automatic = false) {
       const current = variants[selected];
       if (!current.hasPrediction || !current.recordId) {
         setRecordStatus('请先运行 OMR，生成可审核的识别记录。', true);
-        return;
+        return false;
       }
+      if (reviewSavePromise) return reviewSavePromise;
+      clearTimeout(reviewSaveTimer);
       const labelSource = elements.reviewModeOptions.find(option => option.checked)?.value;
       const categories = labelSource === 'corrected_error' ? selectedErrorCategories() : [];
       if (labelSource === 'corrected_error' && !categories.length) {
         setRecordStatus('请至少选择一种错误类型。', true);
-        setErrorCategoryPopover(true);
-        elements.errorCategoryButton.focus();
-        return;
+        setReviewSaveState('error');
+        if (!automatic) {
+          setErrorCategoryPopover(true);
+          elements.errorCategoryButton.focus();
+        }
+        return false;
       }
+      const saveVersion = reviewEditVersion;
+      const recordId = current.recordId;
       const payload = {
-        recordId: current.recordId,
+        recordId,
         labelSource,
         correctedTokenText: elements.correctedTokens.value,
         categories,
         note: elements.errorNote.value,
-        includeTraining: elements.includeTraining.checked,
+        includeTraining: true,
       };
 
-      elements.saveRecordReview.disabled = true;
-      elements.saveRecordReview.textContent = '正在保存…';
+      setReviewSaveState('saving');
       setRecordStatus('正在保存人工结论…');
-      try {
-        const response = await fetch('/api/records/review', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || `保存失败：${response.status}`);
-        current.reviewed = true;
-        const message = result.disposition === 'duplicate'
-          ? `已保存人工结论；相同标签已存在于 ${result.candidateId}，没有重复加入训练候选。`
-          : result.trainingIncluded
-            ? `已审核 ${result.recordId}，并加入训练候选 manifest。`
-            : `已审核 ${result.recordId}，本次未加入训练候选。`;
-        setRecordStatus(message);
-      } catch (error) {
-        setRecordStatus(error.message, true);
-      } finally {
-        elements.saveRecordReview.disabled = Boolean(current.reviewed);
-        elements.saveRecordReview.textContent = current.reviewed ? '已保存人工结论' : '保存人工结论';
-      }
+      reviewSavePromise = (async () => {
+        try {
+          const response = await fetch('/api/records/review', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || `保存失败：${response.status}`);
+          current.reviewed = true;
+          current.trainingCandidate = Boolean(result.trainingIncluded);
+          if (variants[selected]?.recordId === recordId && reviewEditVersion === saveVersion) {
+            setReviewSaveState('saved');
+            const message = result.disposition === 'duplicate'
+              ? `已保存结论；相同标签已存在于 ${result.candidateId}，没有重复加入训练候选。`
+              : `已保存结论并更新训练候选 ${result.recordId}（尚未用于训练）。`;
+            setRecordStatus(message);
+          }
+          return true;
+        } catch (error) {
+          if (variants[selected]?.recordId === recordId && reviewEditVersion === saveVersion) {
+            setReviewSaveState('error');
+            setRecordStatus(error.message, true);
+          }
+          return false;
+        } finally {
+          reviewSavePromise = null;
+          if (variants[selected]?.recordId === recordId && reviewEditVersion !== saveVersion) {
+            setReviewSaveState('dirty');
+            scheduleReviewSave();
+          }
+        }
+      })();
+      return reviewSavePromise;
     }
 
     async function runOmr() {
@@ -911,6 +1308,7 @@
         setStatus('请先上传或粘贴一张谱面图片。', true);
         return;
       }
+      if (!await canLeaveReview('重新识别当前图片')) return;
       const decode = document.querySelector('input[name="decode"]:checked').value;
       const payload = {
         decode,
@@ -934,8 +1332,14 @@
         if (!response.ok) throw new Error(result.error || `请求失败：${response.status}`);
         current.lines = result.tokenText.split('\n');
         current.hasPrediction = true;
+        current.modelInputImage = await createModelInputImage(
+          current.image,
+          Number(result.metadata.width),
+          Number(result.metadata.height)
+        );
+        setImageView('raw');
         current.recordId = result.recordId;
-        current.reviewed = false;
+        current.reviewed = result.record?.status === 'reviewed';
         current.inferenceConfig = {
           decode,
           constrained: elements.constraints.checked,
@@ -943,14 +1347,16 @@
         };
         current.measures = `${decode} · ${result.elapsedSeconds}s`;
         recordSourceTokenText = null;
-        elements.saveRecordReview.disabled = false;
-        elements.saveRecordReview.textContent = '保存人工结论';
+        setReviewSaveState('idle');
         renderTokens();
+        if (result.record) applyRecordReview(result.record);
         const noteCount = (result.tokenText.match(/\bN_S\d+_F(?:X|\d+)\b/g) || []).length;
         elements.noteCount.textContent = `${noteCount} notes`;
         elements.structureStatus.textContent = '候选输出';
         const warning = result.warnings.length ? `；警告：${result.warnings.join('；')}` : '';
-        setStatus(`识别完成并自动保存为 ${result.recordId}，使用 ${result.metadata.device || 'cpu'}${warning}`);
+        setStatus(result.reused
+          ? `已复用历史记录 ${result.recordId} · 未重新运行 OMR`
+          : `识别完成并自动保存为 ${result.recordId}，使用 ${result.metadata.device || 'cpu'}${warning}`);
       } catch (error) {
         const hint = location.protocol === 'file:'
           ? '请先运行 python3 scripts/run_local_omr_ui.py，再打开 http://127.0.0.1:8765/review/omr-workbench.html'
@@ -1031,6 +1437,11 @@
     });
     elements.imageInput.addEventListener('change', event => selectUpload(event.target.files[0]));
     elements.pasteButton.addEventListener('click', pasteClipboardImage);
+    elements.historyButton.addEventListener('click', showHistory);
+    elements.closeHistory.addEventListener('click', () => elements.historyDialog.close());
+    elements.historyDialog.addEventListener('click', event => {
+      if (event.target === elements.historyDialog) elements.historyDialog.close();
+    });
     document.addEventListener('paste', handlePaste);
     elements.maxDecodeLength.addEventListener('input', () => {
       elements.maxDecodeValue.textContent = elements.maxDecodeLength.value;
@@ -1041,21 +1452,49 @@
     });
     elements.tokensTab.addEventListener('click', () => showResultView('tokens'));
     elements.previewTab.addEventListener('click', () => showResultView('preview'));
+    elements.timbreButton.addEventListener('click', () => {
+      playbackInstrument = playbackInstrument === 25 ? 27 : 25;
+      const electric = playbackInstrument === 27;
+      const currentLabel = electric ? '清音电吉他' : '钢弦木吉他';
+      const nextLabel = electric ? '钢弦木吉他' : '清音电吉他';
+      elements.timbreButton.dataset.timbre = String(playbackInstrument);
+      elements.timbreButton.setAttribute('aria-label', `播放音色：${currentLabel}；点击切换为${nextLabel}`);
+      elements.timbreButton.title = `${currentLabel} · 点击切换`;
+      renderCurrentScorePreview();
+    });
+    elements.exportGpButton.addEventListener('click', exportCurrentGp);
+    elements.rawImageView.addEventListener('click', () => setImageView('raw'));
+    elements.modelInputView.addEventListener('click', () => setImageView('model'));
     elements.playPauseButton.addEventListener('click', () => {
       if (playerReady) scoreApi.playPause();
+    });
+    elements.loopButton.addEventListener('click', () => {
+      if (!playerReady) return;
+      scoreApi.isLooping = !scoreApi.isLooping;
+      elements.loopButton.setAttribute('aria-pressed', String(scoreApi.isLooping));
     });
     elements.errorCategoryButton.addEventListener('click', () => {
       setErrorCategoryPopover(!errorCategoryPopoverIsOpen());
     });
-    elements.errorCategoryOptions.forEach(option => option.addEventListener('change', updateErrorCategorySummary));
-    elements.reviewModeOptions.forEach(option => option.addEventListener('change', updateReviewMode));
+    elements.errorCategoryOptions.forEach(option => option.addEventListener('change', () => {
+      updateErrorCategorySummary();
+      markReviewDirty();
+    }));
+    elements.reviewModeOptions.forEach(option => option.addEventListener('change', () => {
+      updateReviewMode();
+      markReviewDirty();
+    }));
     elements.errorCategoryPopover.addEventListener('toggle', event => {
       elements.errorCategoryButton.setAttribute('aria-expanded', String(event.newState === 'open'));
     });
     elements.correctedTokens.addEventListener('input', () => {
+      currentPreviewScore = null;
+      elements.exportGpButton.disabled = true;
       clearTimeout(correctedPreviewTimer);
       correctedPreviewTimer = setTimeout(renderCurrentScorePreview, 250);
+      markReviewDirty();
     });
+    elements.errorNote.addEventListener('input', markReviewDirty);
     elements.tokenHelpButton.addEventListener('mouseenter', () => {
       if (canHoverTokenHelp.matches && !tokenHelpPinned) showTokenHelp(elements.tokenHelpButton);
     });
@@ -1084,8 +1523,13 @@
         positionTokenHelp(tokenHelpOpener === elements.tokenHelpLink ? elements.tokenHelpButton : tokenHelpOpener);
       }
     });
-    elements.saveRecordReview.addEventListener('click', saveRecordReview);
+    elements.saveRecordReview.addEventListener('click', () => saveRecordReview(false));
     elements.runButton.addEventListener('click', runOmr);
+    window.addEventListener('beforeunload', event => {
+      if (!['dirty', 'error', 'saving'].includes(reviewSaveState)) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
     select('empty');
     if (location.protocol === 'file:') {
       setStatus('当前是静态预览。请启动本地服务并改用 http://127.0.0.1:8765 页面运行模型。', true);

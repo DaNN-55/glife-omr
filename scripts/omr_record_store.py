@@ -6,14 +6,22 @@ import shutil
 import subprocess
 import tempfile
 import threading
+from functools import lru_cache
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 
 _WRITE_LOCK = threading.Lock()
 _OMR_SCRIPTS = Path(__file__).resolve().parents[1] / "vendor/guitar-tab-omr/scripts"
 _LABEL_SOURCES = {"corrected_error", "verified_correct"}
+
+
+@lru_cache(maxsize=8)
+def _file_sha256(path: str, modified_ns: int, size: int) -> str:
+    del modified_ns, size
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -94,20 +102,7 @@ class OmrRecordStore:
             original_path = stage_dir / f"input{original_suffix}"
             shutil.copyfile(source_image, original_path)
             training_image = stage_dir / "image.png"
-            conversion = subprocess.run(
-                [
-                    str(self.python),
-                    "-c",
-                    "from PIL import Image; import sys; Image.open(sys.argv[1]).convert('RGB').save(sys.argv[2])",
-                    str(original_path),
-                    str(training_image),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if conversion.returncode != 0:
-                raise RuntimeError("无法把识别图片转换为训练用 PNG")
+            self._convert_to_png(original_path, training_image)
 
             image_sha256 = hashlib.sha256(training_image.read_bytes()).hexdigest()
             predicted_sha256 = self._tokens_sha256(predicted)
@@ -124,6 +119,7 @@ class OmrRecordStore:
                     "constrained": constrained,
                     "maxDecodeLen": max_decode_len,
                     "checkpoint": str(self.checkpoint),
+                    "checkpointSha256": self._checkpoint_sha256(),
                     "imageSha256": image_sha256,
                     "predictedTokensSha256": predicted_sha256,
                 }
@@ -135,6 +131,152 @@ class OmrRecordStore:
                 stage_dir.replace(record_dir)
 
         return RecordResult(record_id=record_id, path=record_dir)
+
+    def list_records(self) -> list[dict]:
+        records_dir = self.root / "records"
+        if not records_dir.is_dir():
+            return []
+        candidate_ids = self._candidate_ids()
+
+        grouped: dict[tuple, list[dict]] = {}
+        for record_dir in records_dir.iterdir():
+            if not record_dir.is_dir():
+                continue
+            _, metadata = self._load_record(record_dir.name)
+            key = (
+                (
+                    metadata.get("imageSha256"),
+                    metadata.get("predictedTokensSha256"),
+                    metadata.get("checkpointSha256") or metadata.get("checkpoint"),
+                    metadata.get("decode"),
+                    metadata.get("constrained"),
+                    metadata.get("maxDecodeLen"),
+                )
+                if metadata.get("imageSha256") and metadata.get("predictedTokensSha256")
+                else (metadata["id"],)
+            )
+            grouped.setdefault(key, []).append(metadata)
+
+        history = []
+        for records in grouped.values():
+            representative = max(
+                records,
+                key=lambda item: (
+                    item["id"] in candidate_ids,
+                    item.get("status") == "reviewed",
+                    item.get("createdAt", ""),
+                ),
+            )
+            history.append(
+                {
+                    "recordId": representative["id"],
+                    "source": representative.get("source"),
+                    "createdAt": representative.get("createdAt", ""),
+                    "updatedAt": representative.get("updatedAt"),
+                    "status": representative.get("status", "unreviewed"),
+                    "trainingCandidate": any(item["id"] in candidate_ids for item in records),
+                    "decode": representative.get("decode"),
+                    "constrained": representative.get("constrained"),
+                    "maxDecodeLen": representative.get("maxDecodeLen"),
+                    "duplicateCount": len(records),
+                }
+            )
+        return sorted(history, key=lambda item: item["createdAt"], reverse=True)
+
+    def load_record(self, record_id: str) -> dict:
+        record_dir, metadata = self._load_record(record_id)
+        inputs = sorted(record_dir.glob("input.*"))
+        if not inputs:
+            raise ValueError("识别记录缺少原始图片")
+        corrected_path = record_dir / "corrected.tokens.txt"
+        candidate_ids = self._candidate_ids()
+        return {
+            "recordId": record_id,
+            "recordPath": record_dir,
+            "inputFilename": inputs[0].name,
+            "source": metadata.get("source"),
+            "createdAt": metadata.get("createdAt"),
+            "status": metadata.get("status", "unreviewed"),
+            "reviewedAt": metadata.get("reviewedAt"),
+            "updatedAt": metadata.get("updatedAt"),
+            "trainingCandidate": record_id in candidate_ids,
+            "decode": metadata.get("decode"),
+            "constrained": metadata.get("constrained"),
+            "maxDecodeLen": metadata.get("maxDecodeLen"),
+            "predictedTokenText": (record_dir / "predicted.tokens.txt").read_text(encoding="utf-8").strip(),
+            "correctedTokenText": corrected_path.read_text(encoding="utf-8").strip()
+            if corrected_path.is_file()
+            else None,
+            "labelSource": metadata.get("labelSource"),
+            "categories": metadata.get("categories", []),
+            "note": metadata.get("note", ""),
+        }
+
+    def find_reusable_inference(
+        self,
+        *,
+        source_image: Path,
+        decode: str,
+        constrained: bool,
+        max_decode_len: int,
+    ) -> dict | None:
+        records_dir = self.root / "records"
+        if not records_dir.is_dir():
+            return None
+        with tempfile.TemporaryDirectory(prefix="glife-image-hash-") as temp_name:
+            canonical = Path(temp_name) / "image.png"
+            self._convert_to_png(source_image, canonical)
+            image_sha256 = hashlib.sha256(canonical.read_bytes()).hexdigest()
+        checkpoint_sha256 = self._checkpoint_sha256()
+
+        matches = []
+        for record_dir in records_dir.iterdir():
+            if not record_dir.is_dir():
+                continue
+            _, metadata = self._load_record(record_dir.name)
+            if (
+                metadata.get("imageSha256") == image_sha256
+                and metadata.get("checkpointSha256") == checkpoint_sha256
+                and metadata.get("decode") == decode
+                and metadata.get("constrained") is constrained
+                and metadata.get("maxDecodeLen") == max_decode_len
+            ):
+                matches.append(metadata)
+        if not matches:
+            return None
+        selected = max(
+            matches,
+            key=lambda item: (item.get("status") == "reviewed", item.get("createdAt", "")),
+        )
+        return self.load_record(selected["id"])
+
+    def delete_record(self, record_id: str) -> None:
+        with _WRITE_LOCK:
+            record_dir, _ = self._load_record(record_id)
+            manifest_path = self.root / "manifest.json"
+            manifest = self._read_manifest()
+            manifest_changed = False
+            if manifest is not None:
+                samples = manifest["samples"]
+                remaining = [sample for sample in samples if sample.get("id") != record_id]
+                if len(remaining) != len(samples):
+                    manifest["samples"] = remaining
+                    manifest_changed = True
+
+            staged_dir = self.root / f".deleted-{record_id}-{uuid4().hex}"
+            record_dir.replace(staged_dir)
+            try:
+                if manifest_changed:
+                    self._write_json_atomic(manifest_path, manifest)
+            except Exception:
+                staged_dir.replace(record_dir)
+                raise
+
+            try:
+                shutil.rmtree(staged_dir)
+            except OSError:
+                # ponytail: logical deletion is complete; retry orphan cleanup only if this recurs.
+                pass
 
     def review(
         self,
@@ -155,11 +297,6 @@ class OmrRecordStore:
             raise ValueError("加入训练素材必须是布尔值")
         if label_source == "corrected_error" and not categories:
             raise ValueError("识别错误时请至少选择一种错误类型")
-        if include_training and label_source == "corrected_error" and not any(
-            category.startswith("omr_") for category in categories
-        ):
-            raise ValueError("只有 OMR 识别错误可以加入训练素材")
-
         corrected = corrected_tokens.strip()
         if not corrected:
             raise ValueError("请填写人工确认后的正确 tokens")
@@ -169,8 +306,9 @@ class OmrRecordStore:
         # writers or measured dataset size require a file lock or an index.
         with _WRITE_LOCK:
             record_dir, metadata = self._load_record(record_id)
-            if metadata.get("status") != "unreviewed":
-                raise ValueError("这条识别记录已经完成人工审核")
+            if metadata.get("status", "unreviewed") not in {"unreviewed", "reviewed"}:
+                raise ValueError("识别记录状态无效")
+            was_reviewed = metadata.get("status") == "reviewed"
             predicted = (record_dir / "predicted.tokens.txt").read_text(encoding="utf-8").strip()
             same_tokens = predicted.split() == corrected.split()
             if label_source == "verified_correct" and not same_tokens:
@@ -183,11 +321,16 @@ class OmrRecordStore:
             manifest = None
             active = []
             duplicate = None
+            existing = None
             superseded = None
+            manifest_path = self.root / "manifest.json"
             if include_training:
                 self._validate_training_tokens(corrected)
+            if include_training or manifest_path.is_file():
                 manifest = self._load_manifest(schema)
                 active = manifest["samples"]
+                existing = next((entry for entry in active if entry.get("id") == record_id), None)
+            if include_training:
                 superseded = self._find_active(active, supersedes_id) if supersedes_id else None
                 if superseded and self._entry_hashes(superseded)[0] != image_sha256:
                     raise ValueError("被取代候选与当前谱面样本不是同一张图片")
@@ -195,17 +338,28 @@ class OmrRecordStore:
                     (
                         entry
                         for entry in active
+                        if entry.get("id") != record_id
                         if self._entry_hashes(entry) == (image_sha256, corrected_sha256)
                     ),
                     None,
                 )
 
-            disposition = "duplicate" if duplicate else "candidate" if include_training else "reviewed"
+            disposition = (
+                "duplicate"
+                if duplicate
+                else "updated"
+                if include_training and was_reviewed
+                else "candidate"
+                if include_training
+                else "reviewed"
+            )
             candidate_id = duplicate["id"] if duplicate else record_id if include_training else None
+            updated_at = self._now()
             reviewed = {
                 **metadata,
                 "status": "reviewed",
-                "reviewedAt": self._now(),
+                "reviewedAt": metadata.get("reviewedAt") or updated_at,
+                "updatedAt": updated_at,
                 "labelSource": label_source,
                 "category": categories[0] if categories else None,
                 "categories": categories,
@@ -218,31 +372,69 @@ class OmrRecordStore:
                 "labelSchema": schema,
             }
 
-            (record_dir / "corrected.tokens.txt").write_text(corrected + "\n", encoding="utf-8")
-            self._write_json_atomic(record_dir / "record.json", reviewed)
-
-            if include_training and manifest is not None:
-                self._ensure_vocab(schema)
-                if superseded and (duplicate is None or superseded["id"] != duplicate["id"]):
-                    active.remove(superseded)
-                if duplicate is None:
-                    note_count, bar_indexes = token_manifest_stats(corrected)
-                    active.append(
-                        {
-                            "id": record_id,
-                            "png": f"records/{record_id}/image.png",
-                            "tokens": f"records/{record_id}/corrected.tokens.txt",
-                            "labelSource": label_source,
-                            "category": categories[0] if categories else None,
-                            "categories": categories,
-                            "noteCount": note_count,
-                            "barIndexes": bar_indexes,
-                        }
-                    )
+            if manifest is not None:
+                if existing:
+                    active.remove(existing)
+                if include_training:
+                    if (
+                        superseded
+                        and superseded in active
+                        and (duplicate is None or superseded["id"] != duplicate["id"])
+                    ):
+                        active.remove(superseded)
+                    if duplicate is None:
+                        note_count, bar_indexes = token_manifest_stats(corrected)
+                        active.append(
+                            {
+                                "id": record_id,
+                                "png": f"records/{record_id}/image.png",
+                                "tokens": f"records/{record_id}/corrected.tokens.txt",
+                                "labelSource": label_source,
+                                "category": categories[0] if categories else None,
+                                "categories": categories,
+                                "noteCount": note_count,
+                                "barIndexes": bar_indexes,
+                            }
+                        )
                 manifest["schemaVersion"] = 3
                 manifest["purpose"] = "Human-verified OMR training candidates"
                 manifest["labelSchema"] = schema
-                self._write_json_atomic(self.root / "manifest.json", manifest)
+
+            corrected_path = record_dir / "corrected.tokens.txt"
+            metadata_path = record_dir / "record.json"
+            snapshots = [
+                (corrected_path, corrected_path.read_bytes() if corrected_path.exists() else None),
+                (metadata_path, metadata_path.read_bytes()),
+            ]
+            if manifest is not None:
+                snapshots.append(
+                    (manifest_path, manifest_path.read_bytes() if manifest_path.exists() else None)
+                )
+                if include_training:
+                    vocab_path = self.root / "vocab.json"
+                    snapshots.append(
+                        (vocab_path, vocab_path.read_bytes() if vocab_path.exists() else None)
+                    )
+            try:
+                if include_training:
+                    self._ensure_vocab(schema)
+                self._write_bytes_atomic(corrected_path, (corrected + "\n").encode())
+                self._write_json_atomic(metadata_path, reviewed)
+                if manifest is not None:
+                    self._write_json_atomic(manifest_path, manifest)
+            except Exception:
+                rollback_error = None
+                for path, previous in reversed(snapshots):
+                    try:
+                        if previous is None:
+                            path.unlink(missing_ok=True)
+                        elif not path.exists() or path.read_bytes() != previous:
+                            self._write_bytes_atomic(path, previous)
+                    except OSError as error:
+                        rollback_error = error
+                if rollback_error:
+                    raise RuntimeError("保存失败，且无法完整恢复原记录") from rollback_error
+                raise
 
         return ReviewResult(
             record_id=record_id,
@@ -279,6 +471,26 @@ class OmrRecordStore:
         if validation.returncode != 0:
             raise RuntimeError("无法校验正确 tokens 的结构")
 
+    def _convert_to_png(self, source: Path, destination: Path) -> None:
+        conversion = subprocess.run(
+            [
+                str(self.python),
+                "-c",
+                "from PIL import Image; import sys; Image.open(sys.argv[1]).convert('RGB').save(sys.argv[2])",
+                str(source),
+                str(destination),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if conversion.returncode != 0:
+            raise RuntimeError("无法把识别图片转换为训练用 PNG")
+
+    def _checkpoint_sha256(self) -> str:
+        stat = self.checkpoint.stat()
+        return _file_sha256(str(self.checkpoint.resolve()), stat.st_mtime_ns, stat.st_size)
+
     def _load_record(self, record_id: str) -> tuple[Path, dict]:
         if not isinstance(record_id, str) or not re.fullmatch(r"[A-Za-z0-9-]+", record_id):
             raise ValueError("识别记录 ID 无效")
@@ -293,21 +505,14 @@ class OmrRecordStore:
         return record_dir, metadata
 
     def _load_manifest(self, schema: dict) -> dict:
-        path = self.root / "manifest.json"
-        if not path.exists():
+        manifest = self._read_manifest()
+        if manifest is None:
             return {
                 "schemaVersion": 3,
                 "purpose": "Human-verified OMR training candidates",
                 "labelSchema": schema,
                 "samples": [],
             }
-        try:
-            manifest = json.loads(path.read_text(encoding="utf-8"))
-            if not isinstance(manifest.get("samples"), list):
-                raise ValueError
-        except (json.JSONDecodeError, ValueError) as error:
-            raise ValueError("训练候选 manifest 已损坏") from error
-
         existing_schema = manifest.get("labelSchema")
         if existing_schema is not None and existing_schema != schema:
             raise ValueError("训练候选数据集的 Label Schema 与当前模型不兼容")
@@ -315,6 +520,29 @@ class OmrRecordStore:
         if existing_schema is None and vocab_path.exists():
             if hashlib.sha256(vocab_path.read_bytes()).hexdigest() != schema["vocabSha256"]:
                 raise ValueError("训练候选数据集的词表与当前模型不兼容")
+        return manifest
+
+    def _candidate_ids(self) -> set[str]:
+        manifest = self._read_manifest()
+        if manifest is None:
+            return set()
+        return {
+            sample["id"]
+            for sample in manifest["samples"]
+            if isinstance(sample.get("id"), str)
+        }
+
+    def _read_manifest(self) -> dict | None:
+        path = self.root / "manifest.json"
+        if not path.exists():
+            return None
+        try:
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            samples = manifest.get("samples")
+            if not isinstance(samples, list) or not all(isinstance(sample, dict) for sample in samples):
+                raise ValueError
+        except (json.JSONDecodeError, ValueError) as error:
+            raise ValueError("训练候选 manifest 已损坏") from error
         return manifest
 
     def _find_active(self, samples: list[dict], candidate_id: str) -> dict:
@@ -370,9 +598,16 @@ class OmrRecordStore:
 
     @staticmethod
     def _write_json_atomic(path: Path, value: dict) -> None:
-        temp_path = path.with_suffix(path.suffix + ".tmp")
-        temp_path.write_text(
-            json.dumps(value, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
+        OmrRecordStore._write_bytes_atomic(
+            path,
+            (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode(),
         )
-        temp_path.replace(path)
+
+    @staticmethod
+    def _write_bytes_atomic(path: Path, value: bytes) -> None:
+        temp_path = path.with_suffix(path.suffix + ".tmp")
+        try:
+            temp_path.write_bytes(value)
+            temp_path.replace(path)
+        finally:
+            temp_path.unlink(missing_ok=True)
